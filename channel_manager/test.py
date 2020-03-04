@@ -25,19 +25,19 @@ MONGO_LINK = f'mongodb+srv://cerebra-autofaq:{MONGO_PASSWORD}@testing-pjmjc.gcp.
 myclient = pymongo.MongoClient(MONGO_LINK)
 
 workspace = 'dino_001'
-prepare_mongo(myclient, workspace)
+#prepare_mongo(myclient, workspace)
 
 tg_credentials = {'name': 'tg',
                   'self_id': '801339101',
                   'token': '801339101:AAH7GQKB5-XK0czIV9U6GzkafkC1Hq25o0o'}
 channel = 'tg'
-resp = requests.post(f'{url}upsert_channel', json={'workspace': workspace,
-                                                   'channel': channel,
-                                                   'credentials': tg_credentials})
-print(resp.status_code, resp.text)
-resp.raise_for_status()
+#resp = requests.post(f'{url}upsert_channel', json={'workspace': workspace,
+#                                                   'channel': channel,
+#                                                   'credentials': tg_credentials})
+#print(resp.status_code, resp.text)
+#resp.raise_for_status()
 
-while live > 0:
+while live != 0:
     live -= 1
     last_mid = -1
     for msg in myclient[workspace]['messages'].find({}):
@@ -47,12 +47,13 @@ while live > 0:
         print(msg)
         message = {'mtype': 'text', 'content': 'hello_world!',
                     'author': 'Bob', 'author_name': 'Bob Sandeson', 'author_type': 'agent',
-                    'channel': channel, 'timestamp': 1}
+                    'channel': channel, 'timestamp': 1, 'thread_id': msg['thread_id']}
         resp = requests.post(f'{url}send_message', json={'message': message,
                                                         'workspace': workspace,
                                                         'channel': channel})
         print(resp.text)
         resp.raise_for_status()
-resp = requests.post(f'{url}remove_channel', json={'workspace': workspace,
-                                                    'channel': channel})
+    time.sleep(5)
+#resp = requests.post(f'{url}remove_channel', json={'workspace': workspace,
+#                                                    'channel': channel})
 print(resp.text)

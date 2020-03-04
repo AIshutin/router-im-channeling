@@ -3,7 +3,8 @@ from enum import Enum
 import random
 import threading
 
-BASE_URL = 'http://localhost/'
+SECRET_INTERNAL_KEY = 'DaGKO1awbMaZ1WgeaLUQ'
+BASE_URL = 'https://cerebra-test.herokuapp.com/'
 
 alphabet=list('0123456789')
 for i in range(26):

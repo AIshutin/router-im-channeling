@@ -31,6 +31,7 @@ def upsert_channel(workspace: str = Body(..., embed=True),
     if myclient[workspace]['channels'].find_one({'name': channel}) is not None:
         raise CredentialsExist
     random_tail = senderlib.add_channel(channel, credentials)
+    myclient[workspace]['channels'].insert_one(credentials.dict())
     myclient[TAIL_DB][channel].insert_one({'tail': random_tail, 'workspace': workspace})
 
 @app.post('/remove_channel')
@@ -39,7 +40,8 @@ def remove_channel(workspace: str = Body(..., embed=True),
     credentials = myclient[workspace]['channels'].find_one({'name': channel})
     if credentials is None:
         raise CredentialsNotFound(channel)
-    senderlib.remove_channel(channel, credentials)
+    credentials.pop('_id')
+    senderlib.remove_channel(channel, ChannelCredentials(**credentials))
     myclient[workspace]['channels'].remove({'name': channel})
     myclient[TAIL_DB][channel].remove({'workspace': workspace})
 

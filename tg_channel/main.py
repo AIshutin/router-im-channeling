@@ -69,7 +69,7 @@ def run(request):
                     'channel': CHANNEL,
                     'timestamp': timestamp,
                     }
-            add_new_message(workspace, msg)
+            add_new_message(workspace, Message(**msg))
 
         token = None
         for att in ['audio', 'document', 'voice', 'video', 'photo']:
@@ -115,4 +115,4 @@ def run(request):
                     'timestamp': timestamp,
                     'file_format': file_format
                 }
-            add_new_message(workspace, msg)
+            add_new_message(workspace, Message(**msg))

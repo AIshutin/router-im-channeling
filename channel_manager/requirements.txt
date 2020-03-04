@@ -4,3 +4,4 @@ pydantic
 python-telegram
 requests
 uvicorn
+dnspython
