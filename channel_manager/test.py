@@ -43,12 +43,12 @@ message = {'mtype': 'text', 'text': 'hello_world!',
             'channel': channel, 'timestamp': 1}
 
 img_file = open("kitty2.jpg", "rb")
-img_message = {'mtype': 'image', 'content': base64.b64encode(img_file.read()),
+img_message = {'mtype': 'image', 'content': base64.b64encode(img_file.read()).decode("utf-8"),
             'text': 'Look and smile', 'file_format': 'jpg', 'author': 'Bob',
             'author_name': 'Bob Sanderson', 'author_type': 'agent',
             'channel': channel, 'timestamp': 1}
 
-def loop(message):
+def loop(message, live=live):
     while live != 0:
         live -= 1
         last_mid = -1
@@ -62,6 +62,9 @@ def loop(message):
             message['thread_id'] = msg['thread_id']
             if message['mtype'] == 'text':
                 message['text'] = f"Your text length is {len(msg['text'])}"
+            print(message)
+            if 'content' in message:
+                print(type(message['content']))
             resp = requests.post(f'{url}send_message', json={'message': message,
                                                             'workspace': workspace,
                                                             'channel': channel})

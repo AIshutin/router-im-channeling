@@ -8,6 +8,7 @@ import os
 import time
 import shutil
 import requests
+import base64
 
 CHANNEL = Channels.tg
 API_ID = "1087174"

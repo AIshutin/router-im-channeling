@@ -1,6 +1,7 @@
 import pymongo
 import base64
 import requests
+import random
 import os
 
 MONGO_PASSWORD = '8jxIlp0znlJm8qhL'
@@ -26,8 +27,16 @@ def get_new_id(workspace):
     return max_id
 
 def add_new_message(workspace, message):
-    message.message_id = get_new_id(workspace)
+    message['message_id'] = get_new_id(workspace)
     myclient[workspace]['messages'].insert_one(message)
+
+alphabet=list('0123456789')
+for i in range(26):
+    alphabet.append(chr(ord('a') + i))
+    alphabet.append(chr(ord('A') + i))
+
+def gen_random_string(length=30):
+    return ''.join([alphabet[random.randint(0, len(alphabet) - 1)] for i in range(length)])
 
 def run(request):
     req = request.get_json()
@@ -40,8 +49,6 @@ def run(request):
     print(req)
     '''
     {'update_id': 116115482, 'message': {'message_id': 335, 'from': {'id': 438162308, 'is_bot': False, 'first_name': 'Andrew', 'last_name': 'Ishutin', 'username': 'aishutin', 'language_code': 'en'}, 'chat': {'id': 438162308, 'first_name': 'Andrew', 'last_name': 'Ishutin', 'username': 'aishutin', 'type': 'private'}, 'date': 1583417418, 'photo': [{'file_id': 'AgACAgIAAxkBAAIBT15hCExgYu0Voc8I5C9xuqcrA7KGAAL6rTEbt2IIS45qW3TsdO97zx3BDgAEAQADAgADbQADUp4DAAEYBA', 'file_unique_id': 'AQADzx3BDgAEUp4DAAE', 'file_size': 19245, 'width': 320, 'height': 169}, {'file_id': 'AgACAgIAAxkBAAIBT15hCExgYu0Voc8I5C9xuqcrA7KGAAL6rTEbt2IIS45qW3TsdO97zx3BDgAEAQADAgADeAADU54DAAEYBA', 'file_unique_id': 'AQADzx3BDgAEU54DAAE', 'file_size': 60995, 'width': 800, 'height': 422}, {'file_id': 'AgACAgIAAxkBAAIBT15hCExgYu0Voc8I5C9xuqcrA7KGAAL6rTEbt2IIS45qW3TsdO97zx3BDgAEAQADAgADeQADUJ4DAAEYBA', 'file_unique_id': 'AQADzx3BDgAEUJ4DAAE', 'file_size': 67460, 'width': 892, 'height': 471}]}}
-
-
     '''
     if 'message' in req:
         message = req['message']
@@ -101,10 +108,16 @@ def run(request):
                 if file_id is None:
                     continue
             url = f'https://api.telegram.org/bot{token}/getFile?file_id={file_id}'
-            resp = requests.get(url).json()
+            resp = requests.get(url).json()['result']
             print(resp)
-            file_format = resp['mime_type'].split('/')[-1]
+
             file_path = resp['file_path']
+            file_format = file_path.split('/')[-1]
+
+            if '.' not in file_format:
+                file_format = ''
+            else:
+                file_format = file_format[file_format.find('.') + 1:]
             url = f'https://api.telegram.org/file/bot{token}/{file_path}'
             resp = requests.get(url, allow_redirects=True)
             fpath = f'/tmp/{gen_random_string()}.{file_format}'
@@ -118,6 +131,6 @@ def run(request):
             msg['content'] = content
             msg['file_format'] = file_format
 
-            add_new_message(workspace, Message(**msg))
+            add_new_message(workspace, msg)
             break
     return 'Ok'
