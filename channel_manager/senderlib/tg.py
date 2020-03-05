@@ -47,11 +47,11 @@ def send_message(message: Message, credentials: ChannelCredentials,
     print('Logged in')
 
     if message.mtype == MessageType.text:
-        #requests.post(f'https://api.telegram.org/bot{credentials.token}/sendMessage',
-        #        json={'chat_id': int(message.thread_id),
-        #                'text': message.content})
-        tg.send_message(chat_id=int(message.thread_id),
-                            text=message.text).wait()
+        requests.post(f'https://api.telegram.org/bot{credentials.token}/sendMessage',
+                json={'chat_id': int(message.thread_id),
+                        'text': message.text})
+        #tg.send_message(chat_id=int(message.thread_id),
+        #                    text=message.text).wait()
         print('SENT')
     elif message.mtype == MessageType.image or message.mtype == MessageType.file:
         file_content = message.content

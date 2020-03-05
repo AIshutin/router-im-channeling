@@ -49,9 +49,10 @@ img_message = {'mtype': 'image', 'content': base64.b64encode(img_file.read()).de
             'channel': channel, 'timestamp': 1}
 
 def loop(message, live=live):
+    last_mid = -1
     while live != 0:
         live -= 1
-        last_mid = -1
+
         for msg in myclient[workspace]['messages'].find({}):
             if msg['message_id'] <= last_mid:
                 continue
