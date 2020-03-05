@@ -38,14 +38,15 @@ resp = requests.post(f'{url}upsert_channel', json={'workspace': workspace,
 print(resp.status_code, resp.text)
 resp.raise_for_status()
 
-message = {'mtype': 'text', 'content': 'hello_world!',
+message = {'mtype': 'text', 'text': 'hello_world!',
             'author': 'Bob', 'author_name': 'Bob Sanderson', 'author_type': 'agent',
             'channel': channel, 'timestamp': 1}
 
 img_file = open("kitty2.jpg", "rb")
 img_msg = {'mtype': 'image', 'content': base64.b64encode(img_file.read()),
-            'file_format': 'jpg', 'author': 'Bob', 'author_name': 'Bob Sanderson',
-            'author_type': 'agent', 'channel': channel, 'timestamp': 1}
+            'text': 'Look and smile', 'file_format': 'jpg', 'author': 'Bob',
+            'author_name': 'Bob Sanderson', 'author_type': 'agent',
+            'channel': channel, 'timestamp': 1}
 
 def loop(message):
     while live != 0:
@@ -60,7 +61,7 @@ def loop(message):
             print(msg)
             message['thread_id'] = msg['thread_id']
             if message['mtype'] == 'text':
-                message['content'] = f"Your text length is {len(msg['content'])}"
+                message['text'] = f"Your text length is {len(msg['text'])}"
             resp = requests.post(f'{url}send_message', json={'message': message,
                                                             'workspace': workspace,
                                                             'channel': channel})
