@@ -2,6 +2,7 @@ import requests
 from argparse import ArgumentParser
 import pymongo
 import time
+import base64
 
 def prepare_mongo(myclient, workspace):
     for collection in ['configs', 'channels', 'messages']:
@@ -25,35 +26,50 @@ MONGO_LINK = f'mongodb+srv://cerebra-autofaq:{MONGO_PASSWORD}@testing-pjmjc.gcp.
 myclient = pymongo.MongoClient(MONGO_LINK)
 
 workspace = 'dino_001'
-#prepare_mongo(myclient, workspace)
+prepare_mongo(myclient, workspace)
 
 tg_credentials = {'name': 'tg',
                   'self_id': '801339101',
                   'token': '801339101:AAH7GQKB5-XK0czIV9U6GzkafkC1Hq25o0o'}
 channel = 'tg'
-#resp = requests.post(f'{url}upsert_channel', json={'workspace': workspace,
-#                                                   'channel': channel,
-#                                                   'credentials': tg_credentials})
-#print(resp.status_code, resp.text)
-#resp.raise_for_status()
+resp = requests.post(f'{url}upsert_channel', json={'workspace': workspace,
+                                                   'channel': channel,
+                                                   'credentials': tg_credentials})
+print(resp.status_code, resp.text)
+resp.raise_for_status()
 
-while live != 0:
-    live -= 1
-    last_mid = -1
-    for msg in myclient[workspace]['messages'].find({}):
-        if msg['message_id'] <= last_mid:
-            continue
-        last_mid = msg['message_id']
-        print(msg)
-        message = {'mtype': 'text', 'content': 'hello_world!',
-                    'author': 'Bob', 'author_name': 'Bob Sandeson', 'author_type': 'agent',
-                    'channel': channel, 'timestamp': 1, 'thread_id': msg['thread_id']}
-        resp = requests.post(f'{url}send_message', json={'message': message,
-                                                        'workspace': workspace,
-                                                        'channel': channel})
-        print(resp.text)
-        resp.raise_for_status()
-    time.sleep(5)
-#resp = requests.post(f'{url}remove_channel', json={'workspace': workspace,
-#                                                    'channel': channel})
+message = {'mtype': 'text', 'content': 'hello_world!',
+            'author': 'Bob', 'author_name': 'Bob Sanderson', 'author_type': 'agent',
+            'channel': channel, 'timestamp': 1}
+
+img_file = open("kitty2.jpg", "rb")
+img_msg = {'mtype': 'image', 'content': base64.b64encode(img_file.read()),
+            'file_format': 'jpg', 'author': 'Bob', 'author_name': 'Bob Sanderson',
+            'author_type': 'agent', 'channel': channel, 'timestamp': 1}
+
+def loop(message):
+    while live != 0:
+        live -= 1
+        last_mid = -1
+        for msg in myclient[workspace]['messages'].find({}):
+            if msg['message_id'] <= last_mid:
+                continue
+            last_mid = msg['message_id']
+            if msg['author_type'] == 'agent':
+                continue
+            print(msg)
+            message['thread_id'] = msg['thread_id']
+            if message['mtype'] == 'text':
+                message['content'] = f"Your text length is {len(msg['content'])}"
+            resp = requests.post(f'{url}send_message', json={'message': message,
+                                                            'workspace': workspace,
+                                                            'channel': channel})
+            print(resp.text)
+            resp.raise_for_status()
+        time.sleep(5)
+
+loop(img_message)
+
+resp = requests.post(f'{url}remove_channel', json={'workspace': workspace,
+                                                    'channel': channel})
 print(resp.text)

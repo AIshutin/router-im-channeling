@@ -38,7 +38,11 @@ def run(request):
         return 'Bad tail'
     workspace = result['workspace']
     print(req)
+    '''
+    {'update_id': 116115482, 'message': {'message_id': 335, 'from': {'id': 438162308, 'is_bot': False, 'first_name': 'Andrew', 'last_name': 'Ishutin', 'username': 'aishutin', 'language_code': 'en'}, 'chat': {'id': 438162308, 'first_name': 'Andrew', 'last_name': 'Ishutin', 'username': 'aishutin', 'type': 'private'}, 'date': 1583417418, 'photo': [{'file_id': 'AgACAgIAAxkBAAIBT15hCExgYu0Voc8I5C9xuqcrA7KGAAL6rTEbt2IIS45qW3TsdO97zx3BDgAEAQADAgADbQADUp4DAAEYBA', 'file_unique_id': 'AQADzx3BDgAEUp4DAAE', 'file_size': 19245, 'width': 320, 'height': 169}, {'file_id': 'AgACAgIAAxkBAAIBT15hCExgYu0Voc8I5C9xuqcrA7KGAAL6rTEbt2IIS45qW3TsdO97zx3BDgAEAQADAgADeAADU54DAAEYBA', 'file_unique_id': 'AQADzx3BDgAEU54DAAE', 'file_size': 60995, 'width': 800, 'height': 422}, {'file_id': 'AgACAgIAAxkBAAIBT15hCExgYu0Voc8I5C9xuqcrA7KGAAL6rTEbt2IIS45qW3TsdO97zx3BDgAEAQADAgADeQADUJ4DAAEYBA', 'file_unique_id': 'AQADzx3BDgAEUJ4DAAE', 'file_size': 67460, 'width': 892, 'height': 471}]}}
 
+
+    '''
     if 'message' in req:
         message = req['message']
         thread_id = str(message['chat']['id'])
@@ -50,26 +54,28 @@ def run(request):
         timestamp = message['date']
         if 'text' in message:
             msg = {'mtype': 'text',
-                    'content': message['text'],
+                    'text': message['text'],
                     'author': author,
                     'author_name': author_name,
                     'author_type': author_type,
                     'thread_id': thread_id,
                     'channel': CHANNEL,
                     'timestamp': timestamp,
+                    'original_id': str(message['id'])
                     }
             add_new_message(workspace, msg)
+            return 'Ok'
+        msg = {'mtype': 'file',
+                'author': author,
+                'author_name': author_name,
+                'author_type': author_type,
+                'thread_id': thread_id,
+                'channel': CHANNEL,
+                'timestamp': timestamp,
+                'original_id': str(message['id'])
+                }
         if 'caption' in message:
-            msg = {'mtype': 'text',
-                    'content': message['caption'],
-                    'author': author,
-                    'author_name': author_name,
-                    'author_type': author_type,
-                    'thread_id': thread_id,
-                    'channel': CHANNEL,
-                    'timestamp': timestamp,
-                    }
-            add_new_message(workspace, Message(**msg))
+            msg['text'] = message['caption']
 
         token = None
         for att in ['audio', 'document', 'voice', 'video', 'photo']:
@@ -91,11 +97,14 @@ def run(request):
                     if mx < sz:
                         mx = sz
                         file_id = el['file_id']
-                        file_format = el['mime_type'].split('/')[-1]
+                        #file_format = el['mime_type'].split('/')[-1]
                 if file_id is None:
                     continue
             url = f'https://api.telegram.org/bot{token}/getFile?file_id={file_id}'
-            file_path = requests.get(url).json()['file_path']
+            resp = requests.get(url).json()
+            print(resp)
+            file_format = resp['mime_type'].split('/')[-1]
+            file_path = resp['file_path']
             url = f'https://api.telegram.org/file/bot{token}/{file_path}'
             resp = requests.get(url, allow_redirects=True)
             fpath = f'/tmp/{gen_random_string()}.{file_format}'
@@ -105,14 +114,10 @@ def run(request):
             os.remove(fpath)
 
             mtype = 'file' if att != 'photo' else 'image'
-            msg = {'mtype': mtype,
-                    'content': content,
-                    'author': author,
-                    'author_name': author_name,
-                    'author_type': author_type,
-                    'thread_id': thread_id,
-                    'channel': CHANNEL,
-                    'timestamp': timestamp,
-                    'file_format': file_format
-                }
+            msg['mtype'] = mtype
+            msg['content'] = content
+            msg['file_format'] = file_format
+
             add_new_message(workspace, Message(**msg))
+            break
+    return 'Ok'

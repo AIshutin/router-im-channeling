@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from enum import Enum
+from typing import Optional
 import random
 import threading
 
@@ -46,7 +47,8 @@ class AuthorType(str, Enum):
 
 class Message(BaseModel):
     mtype: MessageType
-    content: str
+    content: Optional[str] = ''
+    text: Optional[str] = ''
     author: str
     author_name: str
     author_type: AuthorType
