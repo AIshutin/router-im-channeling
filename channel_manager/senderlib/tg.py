@@ -14,7 +14,7 @@ CHANNEL = Channels.tg
 API_ID = "1087174"
 API_HASH = "3370ae6b2b06dad548626a0fdafc14dc"
 
-FILE_REMOVE_DELAY = 60 * 1
+FILE_REMOVE_DELAY = 60 * 3
 
 def send_message(message: Message, credentials: ChannelCredentials,
                     files_directory: Optional[str] = None):
@@ -70,14 +70,17 @@ def send_message(message: Message, credentials: ChannelCredentials,
             cont = {'@type': 'inputMessageDocument',
                 'document': {'@type': 'inputFileLocal', 'path': fname}}
 
-        if caption is not None and len(caption) != "":
-            cont['caption'] = {'text': caption, 'entities': []}
+        if caption is not None and len(caption) != 0:
+            cont['caption'] = {'@type': 'formattedText',
+                                'text': caption}
 
         data = {
             '@type': 'sendMessage',
             'chat_id': message.thread_id,
             'input_message_content': cont,
         }
+
+        print(data)
 
         result = tg._send_data(data)
         result.wait()

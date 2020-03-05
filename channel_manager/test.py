@@ -44,7 +44,7 @@ message = {'mtype': 'text', 'text': 'hello_world!',
 
 img_file = open("kitty2.jpg", "rb")
 img_message = {'mtype': 'image', 'content': base64.b64encode(img_file.read()).decode("utf-8"),
-            'text': 'Look and smile', 'file_format': 'jpg', 'author': 'Bob',
+            'file_format': 'jpg', 'author': 'Bob', # 'text': 'Look and smile',
             'author_name': 'Bob Sanderson', 'author_type': 'agent',
             'channel': channel, 'timestamp': 1}
 
@@ -58,7 +58,7 @@ def loop(message, live=live):
             last_mid = msg['message_id']
             if msg['author_type'] == 'agent':
                 continue
-            print(msg)
+            print(msg, last_mid)
             message['thread_id'] = msg['thread_id']
             if message['mtype'] == 'text':
                 message['text'] = f"Your text length is {len(msg['text'])}"
@@ -70,9 +70,10 @@ def loop(message, live=live):
                                                             'channel': channel})
             print(resp.text)
             resp.raise_for_status()
+            break
         time.sleep(5)
 
-loop(img_message)
+loop(message)
 
 resp = requests.post(f'{url}remove_channel', json={'workspace': workspace,
                                                     'channel': channel})
