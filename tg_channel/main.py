@@ -61,7 +61,7 @@ def run(request):
                     'thread_id': thread_id,
                     'channel': CHANNEL,
                     'timestamp': timestamp,
-                    'original_id': str(message['id'])
+                    'original_id': str(message['message_id'])
                     }
             add_new_message(workspace, msg)
             return 'Ok'
@@ -72,7 +72,7 @@ def run(request):
                 'thread_id': thread_id,
                 'channel': CHANNEL,
                 'timestamp': timestamp,
-                'original_id': str(message['id'])
+                'original_id': str(message['message_id'])
                 }
         if 'caption' in message:
             msg['text'] = message['caption']

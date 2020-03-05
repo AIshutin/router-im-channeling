@@ -43,7 +43,7 @@ message = {'mtype': 'text', 'text': 'hello_world!',
             'channel': channel, 'timestamp': 1}
 
 img_file = open("kitty2.jpg", "rb")
-img_msg = {'mtype': 'image', 'content': base64.b64encode(img_file.read()),
+img_message = {'mtype': 'image', 'content': base64.b64encode(img_file.read()),
             'text': 'Look and smile', 'file_format': 'jpg', 'author': 'Bob',
             'author_name': 'Bob Sanderson', 'author_type': 'agent',
             'channel': channel, 'timestamp': 1}
