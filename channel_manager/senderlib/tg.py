@@ -44,8 +44,13 @@ def send_message(message: Message, credentials: ChannelCredentials,
         # ('spam.txt', open('spam.txt', 'rb'), 'text/plain')
         multipart = (fname, open(fname, 'rb'), guess_mime(fname))
 
-        requests.post(url, json={parameter: multipart,
-                                'chat_id': int(message.thread_id)})
+        dct = {parameter: multipart,
+            'chat_id': int(message.thread_id)}
+
+        if message.text is not None and len(message.text) != 0:
+            dct['caption'] = message.text
+        
+        requests.post(url, json=dct)
         os.remove(fname)
     print('SENT')
 
