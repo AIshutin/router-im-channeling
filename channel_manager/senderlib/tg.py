@@ -1,4 +1,5 @@
 #from telegram.client import Telegram
+from telegram import Bot
 from typing import Optional
 from .common import Message, Channels, ChannelCredentials, gen_random_string, \
                     BASE_URL, SECRET_INTERNAL_KEY, MessageType, get_mime_type
@@ -19,10 +20,13 @@ FILE_REMOVE_DELAY = 60 * 3
 def send_message(message: Message, credentials: ChannelCredentials,
                     files_directory: Optional[str] = None):
 
+    assert(credentials.token is not None and credentials.token != '')
+    bot = Bot(credentials.token)
+    chat_id = int(message.thread_id)
+
     if message.mtype == MessageType.text:
-        requests.post(f'https://api.telegram.org/bot{credentials.token}/sendMessage',
-                json={'chat_id': int(message.thread_id),
-                        'text': message.text})
+        bot.send_message(chat_id=chat_id,
+                        text=message.text)
         #tg.send_message(chat_id=int(message.thread_id),
         #                    text=message.text).wait()
     elif message.mtype == MessageType.image or message.mtype == MessageType.file:
@@ -35,22 +39,18 @@ def send_message(message: Message, credentials: ChannelCredentials,
         with open(fname, 'wb') as file:
             file.write(bytes)
 
-        url = f'https://api.telegram.org/bot{credentials.token}/sendImage'
-        parameter = 'photo'
-        if message.mtype == MessageType.file:
-            url = f'https://api.telegram.org/bot{credentials.token}/sendDocument'
-            parameter = 'document'
+        caption = message.text
+        if caption == '':
+            caption = None
 
-        # ('spam.txt', open('spam.txt', 'rb'), 'text/plain')
-        multipart = (fname, open(fname, 'rb'), guess_mime(fname))
-
-        dct = {parameter: multipart,
-            'chat_id': int(message.thread_id)}
-
-        if message.text is not None and len(message.text) != 0:
-            dct['caption'] = message.text
-
-        print(requests.post(url, json=dct).text)
+        if message.mtype == MessageType.image:
+            bot.send_photo(chat_id=chat_id,
+                           photo=open(fname, 'rb'),
+                           caption=caption)
+        elif message.mtype == MessageType.file:
+            bot.send_document(chat_id=chat_id,
+                              document=open(fname, 'rb'),
+                              caption=caption)
         os.remove(fname)
     print('SENT')
 

@@ -1,8 +1,8 @@
 pymongo
 fastapi
 pydantic
-python-telegram
+#python-telegram
+python-telegram-bot
 requests
 uvicorn
 dnspython
-mimetypes

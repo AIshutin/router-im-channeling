@@ -48,6 +48,15 @@ img_message = {'mtype': 'image', 'content': base64.b64encode(img_file.read()).de
             'author_name': 'Bob Sanderson', 'author_type': 'agent',
             'channel': channel, 'timestamp': 1}
 
+def send_message(message):
+    if message['channel'] == 'tg' and 'thread_id' not in message:
+        message['thread_id'] = '438162308'
+    resp = requests.post(f'{url}send_message', json={'message': message,
+                                                    'workspace': workspace,
+                                                    'channel': channel})
+    resp.raise_for_status()
+
+
 def loop(message, live=live):
     last_mid = -1
     while live != 0:
@@ -74,7 +83,7 @@ def loop(message, live=live):
             break
         time.sleep(5)
 
-loop(img_message)
+send_message(img_message)
 
 resp = requests.post(f'{url}remove_channel', json={'workspace': workspace,
                                                     'channel': channel})
