@@ -74,7 +74,7 @@ def loop(message, live=live):
             break
         time.sleep(5)
 
-loop(message)
+loop(img_message)
 
 resp = requests.post(f'{url}remove_channel', json={'workspace': workspace,
                                                     'channel': channel})

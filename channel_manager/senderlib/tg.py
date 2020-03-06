@@ -1,4 +1,4 @@
-from telegram.client import Telegram
+#from telegram.client import Telegram
 from typing import Optional
 from .common import Message, Channels, ChannelCredentials, gen_random_string, \
                     BASE_URL, SECRET_INTERNAL_KEY, MessageType, get_mime_type
@@ -49,8 +49,8 @@ def send_message(message: Message, credentials: ChannelCredentials,
 
         if message.text is not None and len(message.text) != 0:
             dct['caption'] = message.text
-        
-        requests.post(url, json=dct)
+
+        print(requests.post(url, json=dct).text)
         os.remove(fname)
     print('SENT')
 
