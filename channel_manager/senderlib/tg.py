@@ -1,7 +1,7 @@
 from telegram.client import Telegram
 from typing import Optional
 from .common import Message, Channels, ChannelCredentials, gen_random_string, \
-                    BASE_URL, SECRET_INTERNAL_KEY, MessageType
+                    BASE_URL, SECRET_INTERNAL_KEY, MessageType, get_mime_type
 import threading
 import requests
 import os
@@ -19,40 +19,12 @@ FILE_REMOVE_DELAY = 60 * 3
 def send_message(message: Message, credentials: ChannelCredentials,
                     files_directory: Optional[str] = None):
 
-    if files_directory is None:
-        files_directory = f'/tmp/{gen_random_string()}/'
-
-    try:
-        os.makedirs(files_directory)
-    except:
-        pass
-
-    phone = None if len(credentials.phone) == 0 else credentials.phone
-    token = None if len(credentials.token) == 0 else credentials.token
-
-    print(credentials)
-    print(phone, token)
-    tg = Telegram(
-        api_id=API_ID,
-        api_hash=API_HASH,
-        phone=phone,
-        bot_token=token,
-        database_encryption_key=SECRET_INTERNAL_KEY,
-        files_directory=files_directory
-    )
-    tg.login()
-    result = tg.get_chats()
-    result.wait()
-
-    print('Logged in')
-
     if message.mtype == MessageType.text:
         requests.post(f'https://api.telegram.org/bot{credentials.token}/sendMessage',
                 json={'chat_id': int(message.thread_id),
                         'text': message.text})
         #tg.send_message(chat_id=int(message.thread_id),
         #                    text=message.text).wait()
-        print('SENT')
     elif message.mtype == MessageType.image or message.mtype == MessageType.file:
         file_content = message.content
         caption = message.text
@@ -63,34 +35,19 @@ def send_message(message: Message, credentials: ChannelCredentials,
         with open(fname, 'wb') as file:
             file.write(bytes)
 
-        cont = {'@type': 'inputMessageDocument',
-        'document': {'@type': 'inputFileLocal', 'path': fname}}
-
+        url = f'https://api.telegram.org/bot{credentials.token}/sendImage'
+        parameter = 'photo'
         if message.mtype == MessageType.file:
-            cont = {'@type': 'inputMessageDocument',
-                'document': {'@type': 'inputFileLocal', 'path': fname}}
+            url = f'https://api.telegram.org/bot{credentials.token}/sendDocument'
+            parameter = 'document'
 
-        if caption is not None and len(caption) != 0:
-            cont['caption'] = {'@type': 'formattedText',
-                                'text': caption}
+        # ('spam.txt', open('spam.txt', 'rb'), 'text/plain')
+        multipart = (fname, open(fname, 'rb'), guess_mime(fname))
 
-        data = {
-            '@type': 'sendMessage',
-            'chat_id': message.thread_id,
-            'input_message_content': cont,
-        }
-
-        print(data)
-
-        result = tg._send_data(data)
-        result.wait()
-
-        threading.Thread(target=(lambda delay, fname: (time.sleep(delay), os.remove(fname))),
-            args=(FILE_REMOVE_DELAY, fname), daemon=True).start()
-
-    threading.Thread(target=(lambda delay, files_directory: (time.sleep(delay), tg.stop(),
-                                                    shutil.rmtree(files_directory))),
-                    args=(FILE_REMOVE_DELAY, files_directory), daemon=True).start()
+        requests.post(url, json={parameter: multipart,
+                                'chat_id': int(message.thread_id)})
+        os.remove(fname)
+    print('SENT')
 
 def add_channel(credentials: ChannelCredentials):
     tail = gen_random_string()
