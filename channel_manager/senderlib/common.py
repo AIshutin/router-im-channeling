@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Optional
 import random
 import threading
+import mimetypes
 
 SECRET_INTERNAL_KEY = 'DaGKO1awbMaZ1WgeaLUQ'
 BASE_URL = 'https://cerebra-test.herokuapp.com/'
@@ -14,6 +15,16 @@ for i in range(26):
 
 def gen_random_string(length=30):
     return ''.join([alphabet[random.randint(0, len(alphabet) - 1)] for i in range(length)])
+
+def get_mime_type(fpath):
+    ctype, encoding = mimetypes.guess_type(fpath)
+    if ctype is None or encoding is not None:
+        # No guess could be made, or the file is encoded (compressed), so
+        # use a generic bag-of-bits type.
+        ctype = 'application/octet-stream'
+    maintype, subtype = ctype.split('/', 1)
+    return (maintype, subtype)
+
 
 class Channels(str, Enum):
     tg = 'tg'
