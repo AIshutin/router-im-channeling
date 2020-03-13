@@ -4,6 +4,7 @@ from typing import Optional
 import random
 import threading
 import mimetypes
+import base64
 
 SECRET_INTERNAL_KEY = 'DaGKO1awbMaZ1WgeaLUQ'
 BASE_URL = 'https://cerebra-test.herokuapp.com/'
@@ -25,6 +26,9 @@ def get_mime_type(fpath):
     maintype, subtype = ctype.split('/', 1)
     return (maintype, subtype)
 
+def save_b64_to_file(b64, fpath):
+    with open(fpath, "wb") as file:
+        return file.write(base64.b64decode(b64))
 
 class Channels(str, Enum):
     tg = 'tg'
@@ -66,13 +70,7 @@ class Message(BaseModel):
     thread_id: str = ""
     channel: Channels
     timestamp: int
-    file_format: str = Field('jpg')
-    message_id: int = Field(-1, description="When sending messages to server should be omitted/set to -1")
+    file_format: Optional[str] = Field('jpg')
+    message_id: int = Field(-1)
     original_id: str = Field(None)
-    email_subject: str = Field(None)
-
-'''
-def delayed_func(func, delay, ):
-    threading.Thread(target: .start()
-    time.sleep(delay)
-'''
+    email_subject: Optional[str] = Field(None)

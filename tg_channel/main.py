@@ -8,7 +8,8 @@ MONGO_PASSWORD = '8jxIlp0znlJm8qhL'
 MONGO_LINK = f'mongodb+srv://cerebra-autofaq:{MONGO_PASSWORD}@testing-pjmjc.gcp.mongodb.net/test?retryWrites=true&w=majority'
 myclient = pymongo.MongoClient(MONGO_LINK)
 CHANNEL = 'tg'
-TAIL_DB = "tails"
+TAIL_DB = 'tails'
+TAIL_COLL = 'tails'
 
 IMGS_FORMATS = {'jpg', 'jpeg', 'png', 'svg', 'bmp'}
 
@@ -42,7 +43,7 @@ def run(request):
     req = request.get_json()
     path = request.path
     tail = parse_path(path)[-1]
-    result = myclient[TAIL_DB][CHANNEL].find_one({'tail': tail})
+    result = myclient[TAIL_DB][TAIL_COLL].find_one({'tail': tail})
     if result is None:
         return 'Bad tail'
     workspace = result['workspace']
@@ -78,8 +79,10 @@ def run(request):
                 'author_type': author_type,
                 'thread_id': thread_id,
                 'channel': CHANNEL,
+                'channel_id': str(result['_id']),
                 'timestamp': timestamp,
-                'original_id': str(message['message_id'])
+                'original_id': str(message['message_id']),
+                'text': ''
                 }
         if 'caption' in message:
             msg['text'] = message['caption']
@@ -89,7 +92,7 @@ def run(request):
             if att not in message:
                 continue
             if token is None:
-                res = myclient[workspace]['channels'].find_one({'name': CHANNEL})
+                res = myclient[workspace]['channels'].find_one({'_id': result['_id']})
                 token = res['token']
 
             if att != 'photo':

@@ -10,6 +10,7 @@ import time
 import shutil
 import requests
 import base64
+import pydantic
 
 CHANNEL = Channels.tg
 API_ID = "1087174"
@@ -17,7 +18,11 @@ API_HASH = "3370ae6b2b06dad548626a0fdafc14dc"
 
 FILE_REMOVE_DELAY = 60 * 3
 
-def send_message(message: Message, credentials: ChannelCredentials,
+class TgCredentials(pydantic.BaseModel):
+    token: str
+    name: str = Channels.tg
+
+def send_message(message: Message, credentials: TgCredentials,
                     files_directory: Optional[str] = None):
 
     assert(credentials.token is not None and credentials.token != '')
@@ -54,14 +59,14 @@ def send_message(message: Message, credentials: ChannelCredentials,
         os.remove(fname)
     print('SENT')
 
-def add_channel(credentials: ChannelCredentials):
+def add_channel(credentials: TgCredentials):
     tail = gen_random_string()
     our_url = f'{BASE_URL}{CHANNEL}/{tail}'
     tg_url = f'https://api.telegram.org/bot{credentials.token}/setWebhook?url={our_url}'
     requests.get(tg_url).raise_for_status()
     return tail
 
-def remove_channel(credentials: ChannelCredentials):
+def remove_channel(credentials: TgCredentials):
     tg_url = f'https://api.telegram.org/bot{credentials.token}/deleteWebhook'
     resp = requests.get(tg_url)
     resp.raise_for_status()
