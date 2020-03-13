@@ -10,6 +10,7 @@ def prepare_mongo(myclient, workspace):
 
     myclient[workspace]['configs'].insert_one({'value': 0, 'name': 'last_message_id'})
     myclient[workspace]['messages'].create_index([('message_id', pymongo.ASCENDING)], unique=True)
+    myclient['tails']['fb'].drop()
 
 parser = ArgumentParser()
 
@@ -28,15 +29,18 @@ myclient = pymongo.MongoClient(MONGO_LINK)
 workspace = 'dino_001'
 prepare_mongo(myclient, workspace)
 
-tg_credentials = {'name': 'tg',
-                  'self_id': '801339101',
-                  'token': '801339101:AAH7GQKB5-XK0czIV9U6GzkafkC1Hq25o0o'}
+tg_credentials = {'token': '801339101:AAH7GQKB5-XK0czIV9U6GzkafkC1Hq25o0o'} # 'self_id': '801339101'
+fb_credentials = {'self_id': '101962504709802',
+                  'token': 'EAAIrF0hyVy0BALNlqxTKXsUC2YUnT4GzDMdG6LsYmVIO0y1ocBNcWHzrs26GYWDQr8m5A9aMMjGZBqzYtywW8JmWuAi0DGhGJGeeZA0kz5XCC6u2ptiRPaqfYbu9MRrZCn34JHWAbuFokGJ3E4Fpdjg1ERrSO2M2gkhzoSonwZDZD'}
+
 channel = 'tg'
-resp = requests.post(f'{url}upsert_channel', json={'workspace': workspace,
-                                                   'channel': channel,
-                                                   'credentials': tg_credentials})
+all_credentials = {'tg': tg_credentials, 'fb': fb_credentials}
+credentials = all_credentials[channel]
+resp = requests.post(f'{url}upsert_channel/{channel}', json={'workspace': workspace,
+                                                   'credentials': credentials})
 print(resp.status_code, resp.text)
 resp.raise_for_status()
+channel_id = resp.json()['channel_id']
 
 message = {'mtype': 'text', 'text': 'hello_world!',
             'author': 'Bob', 'author_name': 'Bob Sanderson', 'author_type': 'agent',
@@ -49,12 +53,17 @@ img_message = {'mtype': 'image', 'content': base64.b64encode(img_file.read()).de
             'channel': channel, 'timestamp': 1}
 
 def send_message(message):
-    if message['channel'] == 'tg' and 'thread_id' not in message:
-        message['thread_id'] = '438162308'
+    if 'thread_id' not in message:
+        if message['channel'] == 'tg':
+            message['thread_id'] = '438162308'
+        if message['channel'] == 'fb':
+            message['thread_id'] = '2673203139464950'
+
     resp = requests.post(f'{url}send_message', json={'message': message,
                                                     'workspace': workspace,
-                                                    'channel': channel})
+                                                    'channel_id': channel_id})
     resp.raise_for_status()
+    return resp
 
 
 def loop(message, live=live):
@@ -75,15 +84,11 @@ def loop(message, live=live):
             print(message)
             if 'content' in message:
                 print(type(message['content']))
-            resp = requests.post(f'{url}send_message', json={'message': message,
-                                                            'workspace': workspace,
-                                                            'channel': channel})
-            print(resp.text)
-            resp.raise_for_status()
-            break
+
+            send_message(message)
         time.sleep(5)
 
-send_message(img_message)
+loop(message)
 
 resp = requests.post(f'{url}remove_channel', json={'workspace': workspace,
                                                     'channel': channel})
