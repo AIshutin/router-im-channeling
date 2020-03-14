@@ -1,0 +1,3 @@
+functions-framework>=1.2.0
+vk_api
+pymongo
