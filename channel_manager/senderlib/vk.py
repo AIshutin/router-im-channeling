@@ -32,7 +32,7 @@ def send_message(message: Message, credentials: VkCredentials):
     elif message.mtype == MessageType.image or message.mtype == MessageType.file:
         file_content = message.content
         caption = message.text
-        my_id = credentials.self_id
+        my_id = int(credentials.self_id)
         print(my_id)
 
         fpath = f'/tmp/{gen_random_string(30)}.{message.file_format}'
@@ -63,27 +63,27 @@ def send_message(message: Message, credentials: VkCredentials):
             [{'id': 457239302, 'album_id': -64, 'owner_id': 421581863, 'sizes': [{'type': 's', 'url': 'https://sun9-33.userapi.com/c858528/v858528688/f33e0/glAAFxKU5TM.jpg', 'width': 75, 'height': 54}, {'type': 'm', 'url': 'https://sun9-54.userapi.com/c858528/v858528688/f33e1/-RrwCybVrMA.jpg', 'width': 112, 'height': 81}, {'type': 'x', 'url': 'https://sun9-56.userapi.com/c858528/v858528688/f33e2/OFaWItVqxlY.jpg', 'width': 112, 'height': 81}, {'type': 'o', 'url': 'https://sun9-55.userapi.com/c858528/v858528688/f33e3/UxiXm-6Tw5M.jpg', 'width': 112, 'height': 81}, {'type': 'p', 'url': 'https://sun9-70.userapi.com/c858528/v858528688/f33e4/tjoBVx3XW4E.jpg', 'width': 112, 'height': 81}, {'type': 'q', 'url': 'https://sun9-54.userapi.com/c858528/v858528688/f33e5/0JT_6QJx_o4.jpg', 'width': 112, 'height': 81}, {'type': 'r', 'url': 'https://sun9-49.userapi.com/c858528/v858528688/f33e6/aAPtF6CJdMY.jpg', 'width': 112, 'height': 81}], 'text': '', 'date': 1582716225, 'access_key': 'a542b74c2d19db1516'}]
             '''
         else:
-            res = vk.docs.getWallUploadServer(group_id=my_id) # doesn't work
-            upload_url = res['upload_url']
-            res2 = requests.post(upload_url, files={"file1": (fpath, open(fpath, 'rb'))})
-            print(res2.text)
-            js = res2.json()
-            res3 = vk.docs.save(file=js['file'])
-            print(res3)
+            upl = vk_api.VkUpload(vk)
+            res = upl.document_wall(fpath, group_id=my_id)
+            print(res)
+            #res = vk.docs.getWallUploadServer(group_id=my_id) # doesn't work
+            #upload_url = res['upload_url']
+            #print(f'fpath {fpath}', res)
+            #res2 = requests.post(upload_url, files={"file1": (fpath, open(fpath, 'rb'))})
+            #print(res2.text)
+            #js = res2.json()
+            #res2.raise_for_status()
 
-            doc = res3[0]
-            id = doc['id']
-            owner_id = doc['id']
-            if 'type' in doc:
-                tp = doc['type']
-            else:
-                tp = 'doc'
+            id = res['doc']['id']
+            tp = res['type']
+            owner_id = res['doc']['owner_id']
+
             name = f"{tp}{owner_id}_{id}"
 
             print(name)
             resp = vk.messages.send(user_id=int(message.thread_id),
                             attachment=name,
-                            message=text,
+                            message=caption,
                             random_id=message.message_id)
             print(resp)
         os.remove(fpath)
@@ -92,7 +92,7 @@ def send_message(message: Message, credentials: VkCredentials):
 
 SERVER_TITLE = 'router-im'
 
-def data_flow_hack(credentials: VkCredentials, tail, delay=3):
+def data_flow_hack(credentials: VkCredentials, tail, delay=6):
     """
     We need to add tail information to db before Vk confirmation request.
     Thus, we'll add server to vk after {delay}.

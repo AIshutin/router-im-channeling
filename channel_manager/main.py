@@ -34,6 +34,8 @@ def upsert_channel(workspace: str, channel: Channels, credentials):
                                             'workspace': workspace,
                                             'name': channel})
     print(_id)
+    for el in myclient[TAIL_DB][TAIL_COLL].find({}):
+        print(el)
     return {'channel_id': str(_id)}
 
 @app.post('/upsert_channel/tg/')
