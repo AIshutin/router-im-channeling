@@ -68,6 +68,7 @@ def run(request):
                     'author_type': author_type,
                     'thread_id': thread_id,
                     'channel': CHANNEL,
+                    'channel_id': str(result['_id']),
                     'timestamp': timestamp,
                     'original_id': str(message['message_id'])
                     }
