@@ -89,9 +89,12 @@ def send_message(message: Message, credentials: VkCredentials):
 
 SERVER_TITLE = 'router-im'
 
-def add_channel(credentials: VkCredentials):
-    tail = gen_random_string()
-
+def data_flow_hack(credentials: VkCredentials, tail, delay=3):
+    """
+    We need to add tail information to db before Vk confirmation request.
+    Thus, we'll add server to vk after {delay}.
+    """
+    time.sleep(delay)
     vk = vk_api.VkApi(token=credentials.token).get_api()
     resp = vk.groups.addCallbackServer(group_id=int(credentials.self_id),
                                         url=f'{BASE_URL}{CHANNEL}/{tail}',
@@ -99,6 +102,7 @@ def add_channel(credentials: VkCredentials):
                                 secret_key=SECRET_VK_KEY)
     print(resp)
     server_id = resp['server_id']
+    print(server_id)
     #resp = vk.groups.getCallbackSettings(group_id=int(credentials.self_id),
     #                                     server_id=server_id)
     #resp['message_new'] = 1
@@ -107,6 +111,9 @@ def add_channel(credentials: VkCredentials):
                                   message_new=1,
                                   api_version='5.103')
 
+def add_channel(credentials: VkCredentials):
+    tail = gen_random_string()
+    threading.Thread(target=data_flow_hack, args=(credentials, tail, 3)).start()
     return tail
 
 def remove_channel(credentials: VkCredentials):
