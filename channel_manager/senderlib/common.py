@@ -5,6 +5,7 @@ import random
 import threading
 import mimetypes
 import base64
+from bson.objectid import ObjectId
 
 SECRET_INTERNAL_KEY = 'DaGKO1awbMaZ1WgeaLUQ'
 BASE_URL = 'https://cerebra-test.herokuapp.com/'
@@ -29,6 +30,24 @@ def get_mime_type(fpath):
 def save_b64_to_file(b64, fpath):
     with open(fpath, "wb") as file:
         return file.write(base64.b64decode(b64))
+
+class Id(ObjectId):
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, v):
+        if not isinstance(v, ObjectId) and not isinstance(v, str):
+            raise TypeError('ObjectId required')
+        return ObjectId(v)
+
+    @classmethod
+    def __modify_schema__(cls, schema):
+        schema.update({
+            'Title': 'MongoDB ObjectID',
+            'type': 'string'
+        })
 
 class Channels(str, Enum):
     tg = 'tg'
@@ -74,3 +93,4 @@ class Message(BaseModel):
     message_id: int = Field(-1)
     original_id: str = Field(None)
     email_subject: Optional[str] = Field(None)
+    channel_id: Id

@@ -32,9 +32,9 @@ prepare_mongo(myclient, workspace)
 tg_credentials = {'token': '801339101:AAH7GQKB5-XK0czIV9U6GzkafkC1Hq25o0o'} # 'self_id': '801339101'
 fb_credentials = {'self_id': '101962504709802',
                   'token': 'EAAIrF0hyVy0BALNlqxTKXsUC2YUnT4GzDMdG6LsYmVIO0y1ocBNcWHzrs26GYWDQr8m5A9aMMjGZBqzYtywW8JmWuAi0DGhGJGeeZA0kz5XCC6u2ptiRPaqfYbu9MRrZCn34JHWAbuFokGJ3E4Fpdjg1ERrSO2M2gkhzoSonwZDZD'}
-
-channel = 'tg'
-all_credentials = {'tg': tg_credentials, 'fb': fb_credentials}
+vk_credentials = {'code': '4c3e7bcf', 'token': '1895dbfc845d148eaf334224f661aa14d3cd641badb9eda096370d58efeca73e10d9a4040c9827d54c699', 'self_id': "190503682"}
+channel = 'vk'
+all_credentials = {'tg': tg_credentials, 'fb': fb_credentials, 'vk': vk_credentials}
 credentials = all_credentials[channel]
 resp = requests.post(f'{url}upsert_channel/{channel}', json={'workspace': workspace,
                                                    'credentials': credentials})
@@ -91,5 +91,5 @@ def loop(message, live=live):
 loop(message)
 
 resp = requests.post(f'{url}remove_channel', json={'workspace': workspace,
-                                                    'channel': channel})
+                                                    'channel_id': channel_id})
 print(resp.text)

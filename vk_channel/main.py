@@ -7,12 +7,13 @@ import imaplib
 import datetime
 from enum import Enum
 import json
-from werkzeug.exceptions import HTTPException
+from werkzeug.exceptions import HTTPException, BadRequest, NotFound
 import base64
 import pymongo
 from urllib.parse import urlparse
 import random
 import os
+import vk_api
 
 MONGO_PASSWORD = '8jxIlp0znlJm8qhL'
 MONGO_LINK = f'mongodb+srv://cerebra-autofaq:{MONGO_PASSWORD}@testing-pjmjc.gcp.mongodb.net/test?retryWrites=true&w=majority'
@@ -55,37 +56,49 @@ def run(request):
         return "bad request"
     path = request.path
     tail = parse_path(path)[-1]
+    print('TAIL', tail)
     result = myclient[TAIL_DB][TAIL_COLL].find_one({'tail': tail})
     if result is None:
-        return "Bad tail"
+        for el in myclient[TAIL_DB][TAIL_COLL].find({}):
+            print(el)
+        raise NotFound(description="Bad tail")
     workspace = result['workspace']
     _id = result['_id']
     if json_data['type'] == 'confirmation':
         group_id = str(json_data['group_id'])
+        print(group_id, _id, type(_id))
+        for el in myclient[workspace]['channels'].find({}):
+            print(el)
         credentials = myclient[workspace]['channels'].find_one({'_id': _id})
         if credentials['self_id'] != group_id:
             print(credentials)
-            return "Bad group_id"
+            raise BadRequest(description=f"{group_id} is not found")
         else:
             token = credentials['token']
             vk = vk_api.VkApi(token=token).get_api()
-            code = vk.groups.getCallbackConfirmationCode(token=token)
+            #time.sleep(2)
+            code = vk.groups.getCallbackConfirmationCode(group_id=int(group_id))
             print(code)
+            code = code['code']
+            #code = credentials['code']
+            print(group_id, code)
             return code
     elif json_data['type'] == 'message_new':
-        msg = json_data['message']
+        print(json_data)
+        msg = json_data['object']['message']
         original_id = str(msg['id'])
         timestamp = msg['date']
-        thread_id = str(msg['from_id'])
-        text = msg.get('text', '')
+        thread_id = str(msg['user_id'])
+        group_id = str(json_data['group_id'])
+        text = msg.get('message', '')
 
         msg = {
                 'mtype': 'text',
                 'text': text,
-                'author': f'FB_{sender_id}',
-                'author_name': f'FB_{sender_id}',
+                'author': f'VkUser{thread_id}',
+                'author_name': f'VkUser{thread_id}',
                 'author_type': 'user',
-                'thread_id': sender_id,
+                'thread_id': thread_id,
                 'channel': CHANNEL,
                 'channel_id': str(result['_id']),
                 'timestamp': time,
@@ -136,4 +149,4 @@ def run(request):
         if not was and len(text) != 0:
             add_new_message(workspace, msg)
 
-        return 'Hello, World'
+        return "ok"

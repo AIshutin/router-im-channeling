@@ -17,6 +17,7 @@ SECRET_VK_KEY = '9YAVEQAraTr4pClNDjvg'
 class VkCredentials(pydantic.BaseModel):
     token: str
     self_id: str
+    code: str
     name: str = Channels.vk
     assert(name == Channels.vk)
 
@@ -93,11 +94,19 @@ def add_channel(credentials: VkCredentials):
 
     vk = vk_api.VkApi(token=credentials.token).get_api()
     resp = vk.groups.addCallbackServer(group_id=int(credentials.self_id),
-                                url=f'{BASE_URL}{CHANNEL}/{tail},
+                                        url=f'{BASE_URL}{CHANNEL}/{tail}',
                                 title=SERVER_TITLE,
                                 secret_key=SECRET_VK_KEY)
     print(resp)
     server_id = resp['server_id']
+    #resp = vk.groups.getCallbackSettings(group_id=int(credentials.self_id),
+    #                                     server_id=server_id)
+    #resp['message_new'] = 1
+    vk.groups.setCallbackSettings(group_id=int(credentials.self_id),
+                                 server_id=server_id,
+                                  message_new=1,
+                                  api_version='5.103')
+
     return tail
 
 def remove_channel(credentials: VkCredentials):
