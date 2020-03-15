@@ -1,6 +1,7 @@
 from typing import Optional
 from .common import Message, Channels, ChannelCredentials, gen_random_string, \
-                    BASE_URL, SECRET_INTERNAL_KEY, MessageType, get_mime_type
+                    BASE_URL, SECRET_INTERNAL_KEY, MessageType, get_mime_type, \
+                    save_b64_to_file
 import threading
 import requests
 import os
@@ -31,7 +32,7 @@ def send_message(message: Message, credentials: VkCredentials):
     elif message.mtype == MessageType.image or message.mtype == MessageType.file:
         file_content = message.content
         caption = message.text
-        my_id = creds[self.workspace]['self_id']
+        my_id = credentials.self_id
         print(my_id)
 
         fpath = f'/tmp/{gen_random_string(30)}.{message.file_format}'
@@ -53,10 +54,11 @@ def send_message(message: Message, credentials: VkCredentials):
             name = f"{atype}{owner_id}_{photo_id}"
 
             print(name)
-            vk.messages.send(user_id=int(message.thread_id),
+            resp = vk.messages.send(user_id=int(message.thread_id),
                     attachment=name,
                     message=caption,
                     random_id=message.message_id)
+            print(resp)
             '''
             [{'id': 457239302, 'album_id': -64, 'owner_id': 421581863, 'sizes': [{'type': 's', 'url': 'https://sun9-33.userapi.com/c858528/v858528688/f33e0/glAAFxKU5TM.jpg', 'width': 75, 'height': 54}, {'type': 'm', 'url': 'https://sun9-54.userapi.com/c858528/v858528688/f33e1/-RrwCybVrMA.jpg', 'width': 112, 'height': 81}, {'type': 'x', 'url': 'https://sun9-56.userapi.com/c858528/v858528688/f33e2/OFaWItVqxlY.jpg', 'width': 112, 'height': 81}, {'type': 'o', 'url': 'https://sun9-55.userapi.com/c858528/v858528688/f33e3/UxiXm-6Tw5M.jpg', 'width': 112, 'height': 81}, {'type': 'p', 'url': 'https://sun9-70.userapi.com/c858528/v858528688/f33e4/tjoBVx3XW4E.jpg', 'width': 112, 'height': 81}, {'type': 'q', 'url': 'https://sun9-54.userapi.com/c858528/v858528688/f33e5/0JT_6QJx_o4.jpg', 'width': 112, 'height': 81}, {'type': 'r', 'url': 'https://sun9-49.userapi.com/c858528/v858528688/f33e6/aAPtF6CJdMY.jpg', 'width': 112, 'height': 81}], 'text': '', 'date': 1582716225, 'access_key': 'a542b74c2d19db1516'}]
             '''
@@ -79,10 +81,11 @@ def send_message(message: Message, credentials: VkCredentials):
             name = f"{tp}{owner_id}_{id}"
 
             print(name)
-            vk.messages.send(user_id=int(message.thread_id),
+            resp = vk.messages.send(user_id=int(message.thread_id),
                             attachment=name,
                             message=text,
                             random_id=message.message_id)
+            print(resp)
         os.remove(fpath)
 
     print('SENT')

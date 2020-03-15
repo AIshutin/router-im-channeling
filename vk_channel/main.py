@@ -85,12 +85,12 @@ def run(request):
             return code
     elif json_data['type'] == 'message_new':
         print(json_data)
-        msg = json_data['object']['message']
-        original_id = str(msg['id'])
-        timestamp = msg['date']
-        thread_id = str(msg['user_id'])
+        message = json_data['object']['message']
+        original_id = str(message['id'])
+        timestamp = message['date']
+        thread_id = str(message['from_id'])
         group_id = str(json_data['group_id'])
-        text = msg.get('message', '')
+        text = message.get('text', '')
 
         msg = {
                 'mtype': 'text',
@@ -101,17 +101,17 @@ def run(request):
                 'thread_id': thread_id,
                 'channel': CHANNEL,
                 'channel_id': str(result['_id']),
-                'timestamp': time,
+                'timestamp': timestamp,
                 'message_id': -1,
             }
         was = False
-
-        for attachment in msg.get('attachments', []):
+        print(message)
+        for attachment in message.get('attachments', []):
             mtype = 'file'
             if attachment['type'] == 'photo':
                 mtype = 'image'
                 file =attachment[attachment['type']]
-                caption = file['caption']
+                caption = file.get('caption', '')
                 url = None
                 mx_sz = 0
                 for el in file['sizes']:
@@ -124,7 +124,7 @@ def run(request):
             else:
                 url = attachment[attachment['type']]['url']
             print(url)
-            r = requests.get(link)
+            r = requests.get(url)
             fpath = f'/tmp/{gen_random_string(30)}'
             with open(fpath, 'wb') as f:
                 f.write(r.content)
@@ -133,7 +133,7 @@ def run(request):
             os.remove(fpath)
 
             msg['content'] = content
-            fb_file_name = urlparse(link).path
+            fb_file_name = urlparse(url).path
             file_format = fb_file_name[fb_file_name.rfind('/') + 1:]
             print(file_format)
             if '.' in file_format:
@@ -143,6 +143,7 @@ def run(request):
             msg['file_format'] = file_format
             msg['mtype'] = mtype
 
+            print(msg)
             add_new_message(workspace, msg) # warning
             was = True
         print(was, len(text))

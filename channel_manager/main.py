@@ -62,6 +62,17 @@ def remove_channel(workspace: str = Body(..., embed=True),
     myclient[workspace]['channels'].remove({'_id': channel_id})
     myclient[TAIL_DB][TAIL_COLL].remove({'_id': channel_id})
 
+def get_new_id(workspace: str):
+    max_id = myclient[workspace]['configs'].find_and_modify({'name': 'last_message_id'},
+                                                {'$inc': {'value': 1}}, new=1)['value']
+    return max_id
+
+def add_new_message(workspace: str, message: dict):
+    if message['message_id'] == -1:
+        message['message_id'] = get_new_id(workspace)
+    myclient[workspace]['messages'].insert_one(message)
+    return message['message_id']
+
 @app.post('/send_message')
 def send_message(workspace: str = Body(..., embed=True),
                  channel_id: Id = Body(..., embed=True),
@@ -73,4 +84,6 @@ def send_message(workspace: str = Body(..., embed=True),
             print(el)
         raise CredentialsNotFound(channel_id)
     credentials.pop('_id')
-    return senderlib.send_message(credentials['name'], message, credentials)
+    message.message_id = get_new_id(workspace)
+    resp = senderlib.send_message(credentials['name'], message, credentials)
+    add_new_message(workspace, message.dict())

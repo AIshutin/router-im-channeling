@@ -48,9 +48,15 @@ message = {'mtype': 'text', 'text': 'hello_world!',
 
 img_file = open("kitty2.jpg", "rb")
 img_message = {'mtype': 'image', 'content': base64.b64encode(img_file.read()).decode("utf-8"),
-            'file_format': 'jpg', 'author': 'Bob', # 'text': 'Look and smile',
+            'file_format': 'jpg', 'author': 'Bob', 'text': 'Look and smile',
             'author_name': 'Bob Sanderson', 'author_type': 'agent',
             'channel': channel, 'timestamp': 1}
+
+doc_file = open("requirements.txt", "rb")
+
+doc_message = {'mtype': 'file', 'content': base64.b64encode(doc_file.read()),
+                'file_format': 'txt', 'author': 'Bob', 'author_name': 'Bob Sanderson',
+                'author_type': 'agent', 'channel': channel, 'timestamp': 1}
 
 def send_message(message):
     if 'thread_id' not in message:
@@ -62,6 +68,7 @@ def send_message(message):
     resp = requests.post(f'{url}send_message', json={'message': message,
                                                     'workspace': workspace,
                                                     'channel_id': channel_id})
+    print(resp.text)
     resp.raise_for_status()
     return resp
 
@@ -79,16 +86,16 @@ def loop(message, live=live):
                 continue
             print(msg, last_mid)
             message['thread_id'] = msg['thread_id']
+            message['channel_id'] = msg['channel_id']
             if message['mtype'] == 'text':
                 message['text'] = f"Your text length is {len(msg['text'])}"
-            print(message)
             if 'content' in message:
                 print(type(message['content']))
 
             send_message(message)
         time.sleep(5)
 
-loop(message)
+loop(img_message)
 
 resp = requests.post(f'{url}remove_channel', json={'workspace': workspace,
                                                     'channel_id': channel_id})
