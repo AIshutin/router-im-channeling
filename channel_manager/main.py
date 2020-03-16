@@ -87,5 +87,12 @@ def send_message(workspace: str = Body(..., embed=True),
         raise CredentialsNotFound(channel_id)
     credentials.pop('_id')
     message.message_id = get_new_id(workspace)
-    resp = senderlib.send_message(credentials['name'], message, credentials)
+    print(message.dict())
+    replied = None
+    if message.reply_to is not None and message.reply_to != -1:
+        replied = myclient[workspace]['messages'].find_one({'message_id': message.reply_to})
+        replied.pop('_id')
+        print(replied)
+        replied = Message(**replied)
+    resp = senderlib.send_message(credentials['name'], message, credentials, replied=replied)
     add_new_message(workspace, message.dict())

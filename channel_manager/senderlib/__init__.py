@@ -15,9 +15,11 @@ from .vk import send_message as vk_send_message
 from .vk import remove_channel as vk_remove_channel
 from .vk import VkCredentials as vkcredentials
 
-def send_message(channel: Channels, message: Message, credentials):
+from typing import Optional
+
+def send_message(channel: Channels, message: Message, credentials, replied: Optional[Message]=None):
     credentials = globals()[f'{channel}credentials'](**credentials)
-    return globals()[f'{channel}_send_message'](message, credentials)
+    return globals()[f'{channel}_send_message'](message, credentials, replied=replied)
 
 def add_channel(channel: Channels, credentials) -> str:
     return globals()[f'{channel}_add_channel'](credentials)

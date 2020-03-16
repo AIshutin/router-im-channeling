@@ -90,6 +90,7 @@ def run(request):
             return ''
     elif request.method == 'POST':
         json_data = request.get_json(force=True)
+        print(json_data)
         object = json_data['object']
         entry = json_data['entry']
         sha1 = request.headers.get('X-Hub-Signature')
@@ -121,9 +122,20 @@ def run(request):
                     'thread_id': sender_id,
                     'channel': CHANNEL,
                     'channel_id': str(result['_id']),
-                    'timestamp': time,
+                    'timestamp': time // 1000, # miliseconds -> seconds
                     'message_id': -1,
+                    'original_id': messaging['message']['mid'],
                 }
+
+                if 'reply_to' in messaging['message']:
+                    mid = messaging['message']['reply_to']['mid']
+                    reply_id = -1
+                    for el in myclient[workspace]['messages'].find({'original_id': mid, 'thread_id': sender_id})\
+                                                             .sort([('message_id', 1)]):
+                        reply_id = el['message_id']
+                        break
+                    print(reply_id)
+                    msg['reply_id'] = reply_id
 
                 was = False
                 print(messaging)

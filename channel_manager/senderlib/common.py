@@ -6,6 +6,7 @@ import threading
 import mimetypes
 import base64
 from bson.objectid import ObjectId
+from datetime import datetime
 
 SECRET_INTERNAL_KEY = 'DaGKO1awbMaZ1WgeaLUQ'
 BASE_URL = 'https://cerebra-test.herokuapp.com/'
@@ -94,3 +95,21 @@ class Message(BaseModel):
     original_id: str = Field(None)
     email_subject: Optional[str] = Field(None)
     channel_id: Id
+    reply_to: Optional[int] = -1
+
+MAX_CITATION = 40
+def fallback_reply_to(replied: Message):
+    if replied is None:
+        return ""
+    print(replied.dict())
+    dt_object = datetime.utcfromtimestamp(replied.timestamp) # in which timezone?
+    msg_info = ""
+    if len(replied.text) > 0:
+        msg_info = replied.text[:MAX_CITATION]
+        if len(replied.text) > MAX_CITATION:
+            msg_info = msg_info + '...'
+    else:
+        msg_info = replied.file_format
+
+    prefix = f"[{dt_object} UTC] > {msg_info}\n"
+    return prefix

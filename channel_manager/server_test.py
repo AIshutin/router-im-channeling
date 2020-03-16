@@ -17,10 +17,14 @@ parser = ArgumentParser()
 parser.add_argument('--host', default="localhost")
 parser.add_argument('--port', default=2000)
 parser.add_argument('--live', default=5)
+parser.add_argument('--t', default='t')
+parser.add_argument('--channel', default='tg')
+parser.add_argument('--reply', default=None)
 
 args = parser.parse_args()
 url = f"http://{args.host}:{args.port}/"
 live = int(args.live)
+reply = args.reply
 
 MONGO_PASSWORD = '8jxIlp0znlJm8qhL'
 MONGO_LINK = f'mongodb+srv://cerebra-autofaq:{MONGO_PASSWORD}@testing-pjmjc.gcp.mongodb.net/test?retryWrites=true&w=majority'
@@ -33,7 +37,7 @@ tg_credentials = {'token': '801339101:AAH7GQKB5-XK0czIV9U6GzkafkC1Hq25o0o'} # 's
 fb_credentials = {'self_id': '101962504709802',
                   'token': 'EAAIrF0hyVy0BALNlqxTKXsUC2YUnT4GzDMdG6LsYmVIO0y1ocBNcWHzrs26GYWDQr8m5A9aMMjGZBqzYtywW8JmWuAi0DGhGJGeeZA0kz5XCC6u2ptiRPaqfYbu9MRrZCn34JHWAbuFokGJ3E4Fpdjg1ERrSO2M2gkhzoSonwZDZD'}
 vk_credentials = {'code': '4c3e7bcf', 'token': '1895dbfc845d148eaf334224f661aa14d3cd641badb9eda096370d58efeca73e10d9a4040c9827d54c699', 'self_id': "190503682"}
-channel = 'vk'
+channel = args.channel
 all_credentials = {'tg': tg_credentials, 'fb': fb_credentials, 'vk': vk_credentials}
 credentials = all_credentials[channel]
 resp = requests.post(f'{url}upsert_channel/{channel}', json={'workspace': workspace,
@@ -58,6 +62,9 @@ doc_message = {'mtype': 'file', 'content': base64.b64encode(doc_file.read()),
                 'file_format': 'txt', 'author': 'Bob', 'author_name': 'Bob Sanderson',
                 'author_type': 'agent', 'channel': channel, 'timestamp': 1}
 
+msg_type = args.t
+msg = {'f': doc_message, 'i': img_message, 't': message}[msg_type]
+
 def send_message(message):
     if 'thread_id' not in message:
         if message['channel'] == 'tg':
@@ -74,7 +81,7 @@ def send_message(message):
 
 
 def loop(message, live=live):
-    last_mid = -1
+    last_mid = prev_mid = -1
     while live != 0:
         live -= 1
 
@@ -89,13 +96,15 @@ def loop(message, live=live):
             message['channel_id'] = msg['channel_id']
             if message['mtype'] == 'text':
                 message['text'] = f"Your text length is {len(msg['text'])}"
+            if reply is not None:
+                message['reply_to'] = last_mid
             if 'content' in message:
                 print(type(message['content']))
 
             send_message(message)
         time.sleep(5)
 
-loop(doc_message)
+loop(msg)
 
 resp = requests.post(f'{url}remove_channel', json={'workspace': workspace,
                                                     'channel_id': channel_id})
