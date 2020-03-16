@@ -95,4 +95,10 @@ def send_message(workspace: str = Body(..., embed=True),
         print(replied)
         replied = Message(**replied)
     resp = senderlib.send_message(credentials['name'], message, credentials, replied=replied)
+    print('ID', resp)
+    message.original_id = str(resp)
+    '''dct = message.dict()
+    print(dct)
+    for el in resp:
+        dct[el] = resp[el]'''
     add_new_message(workspace, message.dict())

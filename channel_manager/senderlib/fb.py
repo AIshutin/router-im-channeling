@@ -16,7 +16,7 @@ class FbCredentials(pydantic.BaseModel):
     self_id: str
     name: str = Channels.fb
 
-def send_message(message: Message, credentials: FbCredentials, replied=Optional[Message]):
+def send_message(message: Message, credentials: FbCredentials, replied=Optional[Message]) -> str:
     token = credentials.token
     link = f'https://graph.facebook.com/v5.0/me/messages?access_token={token}'
     text = message.text
@@ -78,6 +78,7 @@ def send_message(message: Message, credentials: FbCredentials, replied=Optional[
     print(response.text)
     response.raise_for_status()
     os.remove(fpath)
+    return response.json()['message_id']
 
 FB_TAIL = ""
 

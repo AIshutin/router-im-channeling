@@ -91,6 +91,22 @@ def run(request):
         thread_id = str(message['from_id'])
         group_id = str(json_data['group_id'])
         text = message.get('text', '')
+        reply_to = message.get('reply_message', {}).get('id', -1)
+        print('reply_to', reply_to)
+        if reply_to != -1:
+            was = False
+            for el in myclient[workspace]['messages'].find({}):
+                print(el)
+            for el in myclient[workspace]['messages'].find({'original_id': str(reply_to), 'thread_id': thread_id})\
+                                                     .sort([('message_id', 1)]):
+                reply_to = el['message_id']
+                was = True
+                print(el, reply_to)
+                break
+            print('ln104', was, reply_to)
+
+            if not was:
+                reply_to = -1
 
         msg = {
                 'mtype': 'text',
@@ -103,6 +119,8 @@ def run(request):
                 'channel_id': str(result['_id']),
                 'timestamp': timestamp,
                 'message_id': -1,
+                'reply_to': reply_to,
+                'original_id': original_id
             }
         was = False
         print(message)

@@ -17,7 +17,7 @@ from .vk import VkCredentials as vkcredentials
 
 from typing import Optional
 
-def send_message(channel: Channels, message: Message, credentials, replied: Optional[Message]=None):
+def send_message(channel: Channels, message: Message, credentials, replied: Optional[Message]=None) -> str:
     credentials = globals()[f'{channel}credentials'](**credentials)
     return globals()[f'{channel}_send_message'](message, credentials, replied=replied)
 
