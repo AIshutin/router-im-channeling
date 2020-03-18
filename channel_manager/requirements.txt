@@ -6,3 +6,4 @@ python-telegram-bot
 requests
 uvicorn
 dnspython
+vk_api
