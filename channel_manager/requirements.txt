@@ -1,7 +1,0 @@
-pymongo
-fastapi
-pydantic
-python-telegram
-requests
-uvicorn
-dnspython
