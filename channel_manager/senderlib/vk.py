@@ -1,7 +1,7 @@
 from typing import Optional
 from .common import Message, Channels, ChannelCredentials, gen_random_string, \
                     BASE_URL, SECRET_INTERNAL_KEY, MessageType, get_mime_type, \
-                    save_b64_to_file
+                    save_b64_to_file, AttachmentType
 import threading
 import requests
 import os
@@ -10,7 +10,7 @@ import shutil
 import requests
 import base64
 import pydantic
-from typing import Optional
+from typing import Optional, List
 import vk_api
 
 CHANNEL = Channels.vk
@@ -20,10 +20,9 @@ class VkCredentials(pydantic.BaseModel):
     token: str
     self_id: str
     code: str
-    name: str = Channels.vk
-    assert(name == Channels.vk)
 
-def send_message(message: Message, credentials: VkCredentials, replied=Optional[Message]) -> str:
+def send_message(message: Message, credentials: VkCredentials, replied: Optional[Message]=None,
+                                                               forwarded: Optional[List[Message]]=None) -> str:
     reply_to = replied
     vk = vk_api.VkApi(token=credentials.token).get_api()
     reply = None
@@ -31,74 +30,55 @@ def send_message(message: Message, credentials: VkCredentials, replied=Optional[
         print(reply_to, message)
 
         reply = int(reply_to.original_id)
-    if message.mtype == MessageType.text:
-        resp = vk.messages.send(user_id=int(message.thread_id),
-                message=message.text,
-                random_id=message.message_id,
-                reply_to=reply)
-        return resp
-    elif message.mtype == MessageType.image or message.mtype == MessageType.file:
-        file_content = message.content
-        caption = message.text
-        my_id = int(credentials.self_id)
-        print(my_id)
+    forward_messages = None
+    #print(forwarded, type(forwarded))
+    if forwarded is not None and len(forwarded) != 0:
+        forward_messages = []
+        for el in forwarded:
+            forward_messages.append(el.original_id)
 
-        fpath = f'/tmp/{gen_random_string(30)}.{message.file_format}'
-        save_b64_to_file(message.content, fpath)
+    vk_attachment_ids = []
+    if message.attachments is not None and len(message.attachments is not None):
+        for attachment in message.attachments:
+            file_content = message.content
+            caption = message.text
+            my_id = int(credentials.self_id)
+            print(my_id)
+            fpath = f'/tmp/{gen_random_string(30)}/{attachment.name}'
+            save_b64_to_file(message.content, fpath)
+            if attachment.type == AttachmentType.image:
+                res = vk.photos.getMessagesUploadServer(peer_id=message.thread_id)
+                res2 = requests.post(res['upload_url'], files={"file1": (fpath, open(fpath, 'rb'))})
+                print(res2.text)
+                js = res2.json()
+                res3 = vk.photos.saveMessagesPhoto(server=js['server'], photo=js['photo'],
+                                            hash=js['hash'])
+                print(res3)
+                photo_id = res3[0]['id']
+                owner_id = res3[0]['owner_id']
+                print(photo_id)
 
-        if message.mtype == MessageType.image:
-            res = vk.photos.getMessagesUploadServer(peer_id=message.thread_id)
-            res2 = requests.post(res['upload_url'], files={"file1": (fpath, open(fpath, 'rb'))})
-            print(res2.text)
-            js = res2.json()
-            res3 = vk.photos.saveMessagesPhoto(server=js['server'], photo=js['photo'],
-                                        hash=js['hash'])
-            print(res3)
-            photo_id = res3[0]['id']
-            owner_id = res3[0]['owner_id']
-            print(photo_id)
+                atype = 'photo'
+                name = f"{atype}{owner_id}_{photo_id}"
+            else:
+                upl = vk_api.VkUpload(vk)
+                res = upl.document_wall(fpath, group_id=my_id)
+                print(res)
+                id = res['doc']['id']
+                tp = res['type']
+                owner_id = res['doc']['owner_id']
+                name = f"{tp}{owner_id}_{id}"
+            vk_attachment_ids.append(name)
+            shutil.rmtree(fpath)
+    else:
+        vk_attachment_ids = None
 
-            atype = 'photo'
-            name = f"{atype}{owner_id}_{photo_id}"
-
-            print(name)
-            resp = vk.messages.send(user_id=int(message.thread_id),
-                    attachment=name,
-                    message=caption,
-                    random_id=message.message_id,
-                    reply_to=reply)
-            print(resp)
-            '''
-            [{'id': 457239302, 'album_id': -64, 'owner_id': 421581863, 'sizes': [{'type': 's', 'url': 'https://sun9-33.userapi.com/c858528/v858528688/f33e0/glAAFxKU5TM.jpg', 'width': 75, 'height': 54}, {'type': 'm', 'url': 'https://sun9-54.userapi.com/c858528/v858528688/f33e1/-RrwCybVrMA.jpg', 'width': 112, 'height': 81}, {'type': 'x', 'url': 'https://sun9-56.userapi.com/c858528/v858528688/f33e2/OFaWItVqxlY.jpg', 'width': 112, 'height': 81}, {'type': 'o', 'url': 'https://sun9-55.userapi.com/c858528/v858528688/f33e3/UxiXm-6Tw5M.jpg', 'width': 112, 'height': 81}, {'type': 'p', 'url': 'https://sun9-70.userapi.com/c858528/v858528688/f33e4/tjoBVx3XW4E.jpg', 'width': 112, 'height': 81}, {'type': 'q', 'url': 'https://sun9-54.userapi.com/c858528/v858528688/f33e5/0JT_6QJx_o4.jpg', 'width': 112, 'height': 81}, {'type': 'r', 'url': 'https://sun9-49.userapi.com/c858528/v858528688/f33e6/aAPtF6CJdMY.jpg', 'width': 112, 'height': 81}], 'text': '', 'date': 1582716225, 'access_key': 'a542b74c2d19db1516'}]
-            '''
-
-        else:
-            upl = vk_api.VkUpload(vk)
-            res = upl.document_wall(fpath, group_id=my_id)
-            print(res)
-            #res = vk.docs.getWallUploadServer(group_id=my_id) # doesn't work
-            #upload_url = res['upload_url']
-            #print(f'fpath {fpath}', res)
-            #res2 = requests.post(upload_url, files={"file1": (fpath, open(fpath, 'rb'))})
-            #print(res2.text)
-            #js = res2.json()
-            #res2.raise_for_status()
-
-            id = res['doc']['id']
-            tp = res['type']
-            owner_id = res['doc']['owner_id']
-
-            name = f"{tp}{owner_id}_{id}"
-
-            print(name)
-            resp = vk.messages.send(user_id=int(message.thread_id),
-                            attachment=name,
-                            message=caption,
+    resp = vk.messages.send(user_id=int(message.thread_id),
+                            message=message.text,
                             random_id=message.message_id,
-                            reply_to=reply)
-            print(resp)
-        os.remove(fpath)
-        return resp
+                            reply_to=reply,
+                            attachment=vk_attachment_ids)
+    return resp
 
 SERVER_TITLE = 'router-im'
 
@@ -122,6 +102,7 @@ def data_flow_hack(credentials: VkCredentials, tail, delay=6):
     vk.groups.setCallbackSettings(group_id=int(credentials.self_id),
                                  server_id=server_id,
                                   message_new=1,
+                                  message_edit=1,
                                   api_version='5.103')
 
 def add_channel(credentials: VkCredentials):

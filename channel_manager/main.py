@@ -1,12 +1,15 @@
 import pymongo
-from fastapi import FastAPI, Query, Body
+from fastapi import FastAPI, Query, Body, HTTPException
 from pydantic import BaseModel, Field
 import senderlib
-from senderlib.tg import TgCredentials
 from senderlib.fb import FbCredentials
 from senderlib.vk import VkCredentials
 from senderlib.common import Channels, Message, Id
 from bson.objectid import ObjectId
+import logging
+from datetime import datetime
+
+logging.basicConfig(level=logging.DEBUG)
 
 class CredentialsNotFound(Exception):
     def __init__(self, name: Channels):
@@ -14,91 +17,92 @@ class CredentialsNotFound(Exception):
     def __str__(self):
         return f"{self.name} credentials not found"
 
-
 MONGO_PASSWORD = '8jxIlp0znlJm8qhL'
 MONGO_LINK = f'mongodb+srv://cerebra-autofaq:{MONGO_PASSWORD}@testing-pjmjc.gcp.mongodb.net/test?retryWrites=true&w=majority'
 myclient = pymongo.MongoClient(MONGO_LINK)
-
-TAIL_DB = 'tails'
-TAIL_COLL = 'tails'
+channels = myclient['SERVICE']['channels']
+messages = myclient['SERVICE']['messages']
 
 app = FastAPI()
 
-def upsert_channel(workspace: str, channel: Channels, credentials):
-    assert(credentials.name == channel)
-    random_tail = senderlib.add_channel(channel, credentials)
-    print(random_tail)
-    _id = myclient[workspace]['channels'].insert_one(credentials.dict()).inserted_id
-    myclient[TAIL_DB][TAIL_COLL].insert_one({'_id': _id,
-                                            'tail': random_tail,
-                                            'workspace': workspace,
-                                            'name': channel})
-    print(_id)
-    for el in myclient[TAIL_DB][TAIL_COLL].find({}):
-        print(el)
+def upsert_channel(channel: Channels, credentials):
+    webhook_token = senderlib.add_channel(channel, credentials)
+    logging.debug(webhook_token)
+
+    common_credentials = senderlib.Credentials(channel_type=channel,
+                                               credentials=credentials,
+                                               webhook_token=webhook_token)
+    _id = channels.insert_one(common_credentials.dict()).inserted_id
+    logging.debug(_id)
+    for el in channels.find({}):
+        logging.debug(el)
     return {'channel_id': str(_id)}
 
-@app.post('/upsert_channel/tg/')
-def upsert_tg(workspace: str = Body(..., embed=True),
-              credentials: TgCredentials = Body(..., embed=True)):
-    return upsert_channel(workspace, Channels.tg, credentials)
+@app.post('/upsert_channel/tg_bot/')
+def upsert_tg_bot(credentials: senderlib.tg_bot.TgCredentials = Body(..., embed=True)):
+    return upsert_channel(Channels.tg_bot, credentials)
 
 @app.post('/upsert_channel/fb/')
-def upsert_fb(workspace: str = Body(..., embed=True),
-              credentials: FbCredentials = Body(..., embed=True)):
-    return upsert_channel(workspace, Channels.fb, credentials)
+def upsert_fb(credentials: FbCredentials = Body(..., embed=True)):
+    return upsert_channel(Channels.fb, credentials)
 
 @app.post('/upsert_channel/vk/')
-def upsert_fb(workspace: str = Body(..., embed=True),
-              credentials: VkCredentials = Body(..., embed=True)):
-    return upsert_channel(workspace, Channels.vk, credentials)
+def upsert_fb(credentials: VkCredentials = Body(..., embed=True)):
+    return upsert_channel(Channels.vk, credentials)
 
 @app.post('/remove_channel')
-def remove_channel(workspace: str = Body(..., embed=True),
-                  channel_id: Id = Body(..., embed=True)):
-    credentials = myclient[workspace]['channels'].find_one({'_id': channel_id})
+def remove_channel(channel_id: Id = Body(..., embed=True)):
+    credentials = channels.find_one({'_id': channel_id})
     if credentials is None:
         raise CredentialsNotFound(channel)
-    credentials.pop('_id')
-    senderlib.remove_channel(credentials['name'], credentials)
-    myclient[workspace]['channels'].remove({'_id': channel_id})
-    myclient[TAIL_DB][TAIL_COLL].remove({'_id': channel_id})
+    senderlib.remove_channel(credentials['channel_type'], credentials['credentials'])
+    channels.remove({'_id': channel_id})
 
-def get_new_id(workspace: str):
-    max_id = myclient[workspace]['configs'].find_and_modify({'name': 'last_message_id'},
-                                                {'$inc': {'value': 1}}, new=1)['value']
-    return max_id
+def add_new_message(message: dict):
+    message.pop('_id', None)
+    _id = messages.insert_one(message).inserted_id
+    return _id
 
-def add_new_message(workspace: str, message: dict):
-    if message['message_id'] == -1:
-        message['message_id'] = get_new_id(workspace)
-    myclient[workspace]['messages'].insert_one(message)
-    return message['message_id']
+class FieldIsNotNone(Exception):
+    def __init__(self, field):
+        self.field = field
+    def __str__(self):
+        return f"{self.field} must be none when sending messages to a server."
 
 @app.post('/send_message')
-def send_message(workspace: str = Body(..., embed=True),
-                 channel_id: Id = Body(..., embed=True),
-                 message: Message = Body(..., embed=True)):
-    print(type(channel_id))
-    credentials = myclient[workspace]['channels'].find_one({'_id': channel_id})
+def send_message(message: Message = Body(..., embed=True)):
+    if message.original_ids is not None:
+        raise HTTPException(status_code=400, detail=str(FieldIsNotNone('original_ids')))
+    if message.server_timestamp is not None:
+        raise HTTPException(status_code=400, detail=str(FieldIsNotNone('server_timestamp')))
+    if message.timestamp is not None:
+        raise HTTPException(status_code=400, detail=str(FieldIsNotNone('timestamp')))
+    if message.id is not None:
+        raise HTTPException(status_code=400, detail=str(FieldIsNotNone('id')))
+
+    channel_id = message.channel_id
+    logging.debug(type(channel_id))
+    credentials = channels.find_one({'_id': channel_id})
     if credentials is None:
-        for el in myclient[workspace]['channels'].find({}):
-            print(el)
+        for el in channels.find({}):
+            logging.debug(el)
         raise CredentialsNotFound(channel_id)
-    credentials.pop('_id')
-    message.message_id = get_new_id(workspace)
-    print(message.dict())
+    channel = credentials['channel_type']
+    credentials = credentials['credentials']
+
+    message.channel = channel
+    message.server_timestamp = message.timestamp = datetime.timestamp(datetime.utcnow())
+    logging.debug(message.dict())
+
     replied = None
     if message.reply_to is not None and message.reply_to != -1:
-        replied = myclient[workspace]['messages'].find_one({'message_id': message.reply_to})
+        replied = messages.find_one({'message_id': message.reply_to})
         replied.pop('_id')
-        print(replied)
+        logging.debug(replied)
         replied = Message(**replied)
-    resp = senderlib.send_message(credentials['name'], message, credentials, replied=replied)
-    print('ID', resp)
-    message.original_id = str(resp)
-    '''dct = message.dict()
-    print(dct)
-    for el in resp:
-        dct[el] = resp[el]'''
-    add_new_message(workspace, message.dict())
+        replied.channel = channel
+    resp = senderlib.send_message(channel, message, credentials, replied=replied)
+    logging.debug('IDs', resp)
+    message.original_ids = resp
+    return {'id': str(add_new_message(message.dict())), 'original_ids': message.original_ids,
+            'service_timestamp': message.service_timestamp}

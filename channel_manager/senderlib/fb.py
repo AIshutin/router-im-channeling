@@ -1,6 +1,6 @@
 from .common import Message, Channels, ChannelCredentials, gen_random_string, \
                     BASE_URL, SECRET_INTERNAL_KEY, MessageType, get_mime_type, \
-                    save_b64_to_file, fallback_reply_to
+                    save_b64_to_file, fallback_reply_to, fallback_forward
 import threading
 import requests
 import os
@@ -9,17 +9,21 @@ import shutil
 import requests
 import base64
 import pydantic
-from typing import Optional
+from typing import Optional, List
 
 class FbCredentials(pydantic.BaseModel):
     token: str
     self_id: str
-    name: str = Channels.fb
 
 def send_message(message: Message, credentials: FbCredentials, replied=Optional[Message]) -> str:
     token = credentials.token
     link = f'https://graph.facebook.com/v5.0/me/messages?access_token={token}'
     text = message.text
+
+    if message.forwarded is not None:
+        for el in message.forwarded:
+            text = fallback_forward(el) + text
+
     if message.reply_to is not None and message.reply_to != -1:
         text = fallback_reply_to(replied) + text
     if message.mtype == MessageType.text:

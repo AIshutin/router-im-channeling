@@ -1,11 +1,12 @@
 from pydantic import BaseModel, Field
 from enum import Enum
-from typing import Optional
+from typing import Optional, List, Union
 import random
 import threading
 import mimetypes
 import base64
 from bson.objectid import ObjectId
+import bson
 from datetime import datetime
 
 SECRET_INTERNAL_KEY = 'DaGKO1awbMaZ1WgeaLUQ'
@@ -41,7 +42,13 @@ class Id(ObjectId):
     def validate(cls, v):
         if not isinstance(v, ObjectId) and not isinstance(v, str):
             raise TypeError('ObjectId required')
-        return ObjectId(v)
+        res = v
+        try:
+            if isinstance(v, str):
+                res = ObjectId(v)
+        except bson.errors.InvalidId:
+            raise TypeError(f'{v} is not ObjectId')
+        return res
 
     @classmethod
     def __modify_schema__(cls, schema):
@@ -50,8 +57,24 @@ class Id(ObjectId):
             'type': 'string'
         })
 
+class AttachmentType(str, Enum):
+    file = 'file'
+    image = 'image'
+
+class FileAttachment(BaseModel):
+    type: AttachmentType = AttachmentType.file
+    assert(type == AttachmentType.file)
+    content: Optional[str]
+    name: Optional[str]
+    caption: Optional[str]
+
+class ImageAttachment(FileAttachment):
+    type: AttachmentType = AttachmentType.image
+    assert(type == AttachmentType.image)
+
 class Channels(str, Enum):
     tg = 'tg'
+    tg_bot = 'tg_bot'
     vk = 'vk'
     email = 'email'
     fb = 'fb'
@@ -68,9 +91,8 @@ class ChannelCredentials(BaseModel):
     phone: str = ""
 
 class MessageType(str, Enum):
-    text = 'text'
-    file = 'file'
-    image = 'image'
+    message = 'message'
+    edit = 'edit'
 
 class AccessType(str, Enum):
     admin = "admin"
@@ -80,29 +102,34 @@ class AuthorType(str, Enum):
     agent = 'agent'
     user = 'user'
 
-class Message(BaseModel):
-    mtype: MessageType
-    content: Optional[str] = ''
+class ForwardedMessage(BaseModel):
+    mtype: MessageType = MessageType.message
+    id: Optional[Id]
+    attachments: Optional[List[Union[FileAttachment, ImageAttachment]]]
     text: Optional[str] = ''
     author: str
     author_name: str
     author_type: AuthorType
-    thread_id: str = ""
-    channel: Channels
-    timestamp: int
-    file_format: Optional[str] = Field('jpg')
-    message_id: int = Field(-1)
-    original_id: str = Field(None)
-    email_subject: Optional[str] = Field(None)
+    channel: Optional[Channels]
+    timestamp: Optional[int]
+    service_timestamp: Optional[int]
+    original_ids: Optional[List[str]] = None
+    email_subject: Optional[str] = None
+
+class Message(ForwardedMessage):
     channel_id: Id
+    thread_id: str = ""
+    forwarded: Optional[List[ForwardedMessage]] = None
     reply_to: Optional[int] = -1
+    mversion: int = 0
+    server_timestamp: Optional[int]
 
 MAX_CITATION = 40
 def fallback_reply_to(replied: Message):
     if replied is None:
         return ""
     print(replied.dict())
-    dt_object = datetime.utcfromtimestamp(replied.timestamp) # in which timezone?
+    dt_object = datetime.utcfromtimestamp(replied.timestamp/1000) # in which timezone?
     msg_info = ""
     if len(replied.text) > 0:
         msg_info = replied.text[:MAX_CITATION]
@@ -113,3 +140,6 @@ def fallback_reply_to(replied: Message):
 
     prefix = f"[{dt_object} UTC] > {msg_info}\n"
     return prefix
+
+def fallback_forward(forwarded: Message):
+    return fallback_reply_to(forwarded)
