@@ -18,6 +18,16 @@ def parse_path(path):
     assert(len(parts) == 2 or len(parts) == 1)
     return parts
 
+def get_message_id_by_original_id(original_id, thread_id, workspace):
+    if original_id == '':
+        return -1
+    ans = -1
+    for el in myclient[workspace]['messages'].find({'original_id': str(original_id), 'thread_id': thread_id})\
+                                             .sort([('message_id', 1)]):
+        ans = el['message_id']
+        break
+    return ans
+
 def add_new_message(message):
     return messages.insert_one(message).inserted_id
 

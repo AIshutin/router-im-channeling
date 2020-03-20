@@ -1,4 +1,0 @@
-functions-framework>=1.2.0
-pymongo
-requests
-dnspython
