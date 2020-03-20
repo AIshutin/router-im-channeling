@@ -1,42 +1,13 @@
-import pymongo
-import base64
 import requests
 import random
 import os
 import logging
 from datetime import datetime
+from common import *
 
 CHANNEL = 'tg_bot'
-logger = logging.Logger(CHANNEL)
+logger = logging.Logger('logger')
 logger.setLevel(logging.DEBUG)
-
-MONGO_PASSWORD = '8jxIlp0znlJm8qhL'
-MONGO_LINK = f'mongodb+srv://cerebra-autofaq:{MONGO_PASSWORD}@testing-pjmjc.gcp.mongodb.net/test?retryWrites=true&w=majority'
-myclient = pymongo.MongoClient(MONGO_LINK)
-
-channels = myclient['SERVICE']['channels']
-messages = myclient['SERVICE']['messages']
-IMGS_FORMATS = {'jpg', 'jpeg', 'png', 'svg', 'bmp'}
-
-def get_b64_file(fpath):
-    with open(fpath, "rb") as file:
-        return base64.b64encode(file.read())
-
-def parse_path(path):
-    parts = path[1:].split('/')
-    assert(len(parts) == 2 or len(parts) == 1)
-    return parts
-
-def add_new_message(message):
-    return messages.insert_one(message).inserted_id
-
-alphabet=list('0123456789')
-for i in range(26):
-    alphabet.append(chr(ord('a') + i))
-    alphabet.append(chr(ord('A') + i))
-
-def gen_random_string(length=30):
-    return ''.join([alphabet[random.randint(0, len(alphabet) - 1)] for i in range(length)])
 
 def run(request):
     req = request.get_json()
@@ -47,9 +18,6 @@ def run(request):
         return 'Bad token'
     channel_id = result['_id']
     print(req)
-    '''
-    {'update_id': 116115482, 'message': {'message_id': 335, 'from': {'id': 438162308, 'is_bot': False, 'first_name': 'Andrew', 'last_name': 'Ishutin', 'username': 'aishutin', 'language_code': 'en'}, 'chat': {'id': 438162308, 'first_name': 'Andrew', 'last_name': 'Ishutin', 'username': 'aishutin', 'type': 'private'}, 'date': 1583417418, 'photo': [{'file_id': 'AgACAgIAAxkBAAIBT15hCExgYu0Voc8I5C9xuqcrA7KGAAL6rTEbt2IIS45qW3TsdO97zx3BDgAEAQADAgADbQADUp4DAAEYBA', 'file_unique_id': 'AQADzx3BDgAEUp4DAAE', 'file_size': 19245, 'width': 320, 'height': 169}, {'file_id': 'AgACAgIAAxkBAAIBT15hCExgYu0Voc8I5C9xuqcrA7KGAAL6rTEbt2IIS45qW3TsdO97zx3BDgAEAQADAgADeAADU54DAAEYBA', 'file_unique_id': 'AQADzx3BDgAEU54DAAE', 'file_size': 60995, 'width': 800, 'height': 422}, {'file_id': 'AgACAgIAAxkBAAIBT15hCExgYu0Voc8I5C9xuqcrA7KGAAL6rTEbt2IIS45qW3TsdO97zx3BDgAEAQADAgADeQADUJ4DAAEYBA', 'file_unique_id': 'AQADzx3BDgAEUJ4DAAE', 'file_size': 67460, 'width': 892, 'height': 471}]}}
-    '''
     if 'message' in req:
         message = req['message']
         thread_id = str(message['chat']['id'])
@@ -58,7 +26,7 @@ def run(request):
         author_name = user.get('first_name') + \
                     ' ' + user.get('last_name', '')
         author_type = 'user'
-        timestamp = datetime.timestamp(datetime.utcnow())
+        timestamp = get_server_timestamp()
         logger.debug(timestamp, message.get('date')*1000)
         msg = { 'mtype': 'message',
                 'text': message.get('text'),
@@ -117,3 +85,37 @@ def run(request):
         msg['attachments'] = attachments
         add_new_message(msg)
     return 'Ok'
+
+request_json_example = {'update_id': 116115482,
+                        'message': {
+                            'message_id': 335,
+                            'from': {
+                                'id': 438162308,
+                                'is_bot': False,
+                                'first_name': 'Andrew',
+                                'last_name': 'Ishutin',
+                                'username': 'aishutin',
+                                'language_code': 'en'
+                                },
+                            'chat': {
+                                'id': 438162308,
+                                'first_name': 'Andrew',
+                                'last_name': 'Ishutin',
+                                'username': 'aishutin',
+                                'type': 'private'
+                                },
+                            'date': 1583417418,
+                            'photo': [
+                                {'file_id': 'AgACAgIAAxkBAAIBT15hCExgYu0Voc8I5C9xuqcrA7KGAAL6rTEbt2IIS45qW3TsdO97zx3BDgAEAQADAgADbQADUp4DAAEYBA', 'file_unique_id': 'AQADzx3BDgAEUp4DAAE', 'file_size': 19245, 'width': 320, 'height': 169}, {'file_id': 'AgACAgIAAxkBAAIBT15hCExgYu0Voc8I5C9xuqcrA7KGAAL6rTEbt2IIS45qW3TsdO97zx3BDgAEAQADAgADeAADU54DAAEYBA',
+                                 'file_unique_id': 'AQADzx3BDgAEU54DAAE',
+                                 'file_size': 60995,
+                                 'width': 800,
+                                 'height': 422},
+                                {'file_id': 'AgACAgIAAxkBAAIBT15hCExgYu0Voc8I5C9xuqcrA7KGAAL6rTEbt2IIS45qW3TsdO97zx3BDgAEAQADAgADeQADUJ4DAAEYBA',
+                                 'file_unique_id': 'AQADzx3BDgAEUJ4DAAE',
+                                 'file_size': 67460,
+                                 'width': 892,
+                                 'height': 471}
+                                 ]
+                            }
+                        }

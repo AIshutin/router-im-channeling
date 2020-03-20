@@ -1,8 +1,12 @@
 pymongo
+dnspython
 fastapi
 pydantic
 #python-telegram
 python-telegram-bot
 requests
 uvicorn
-dnspython
+vk_api
+requests
+six
+functions-framework>=1.2.0

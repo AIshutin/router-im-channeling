@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 import random
 import os
 import vk_api
+import mimetypes
 
 MONGO_PASSWORD = '8jxIlp0znlJm8qhL'
 MONGO_LINK = f'mongodb+srv://cerebra-autofaq:{MONGO_PASSWORD}@testing-pjmjc.gcp.mongodb.net/test?retryWrites=true&w=majority'
@@ -23,14 +24,19 @@ CHANNEL = 'fb'
 myclient = pymongo.MongoClient(MONGO_LINK)
 SECRET_VK_KEY = '9YAVEQAraTr4pClNDjvg'
 
-def get_new_id(workspace):
+def get_new_id(workspace, cnt=1):
     max_id = myclient[workspace]['configs'].find_and_modify({'name': 'last_message_id'},
-                                                {'$inc': {'value': 1}}, new=1)['value']
+                                                {'$inc': {'value': cnt}}, new=1)['value']
     return max_id
 
-def add_new_message(workspace, message):
-    message['message_id'] = get_new_id(workspace)
-    myclient[workspace]['messages'].insert_one(message)
+def add_new_messages(workspace, messages):
+    if len(messages) == 0:
+        return
+    last_id = get_new_id(workspace, len(messages))
+    for i in range(1, len(messages) + 1):
+        messages[-i]['message_id'] = last_id
+        last_id -= 1
+    myclient[workspace]['messages'].insert_many(messages)
 
 def get_b64_file(fpath):
     with open(fpath, "rb") as file:
@@ -48,6 +54,130 @@ def parse_path(path):
     parts = path[1:].split('/')
     assert(len(parts) == 2 or len(parts) == 1)
     return parts
+
+def get_message_id_by_original_id(original_id, thread_id, workspace):
+    if original_id == '':
+        return -1
+    ans = -1
+    for el in myclient[workspace]['messages'].find({'original_id': str(original_id), 'thread_id': thread_id})\
+                                             .sort([('message_id', 1)]):
+        ans = el['message_id']
+        break
+    return ans
+
+def process_vk_message(message, workspace: str, self_id: str, channel_id: str="", main_thread_id: str=""):
+    original_id = str(message.get('id', ''))
+    timestamp = message['date']
+    thread_id = str(message['from_id'])
+    if main_thread_id == '':
+        main_thread_id = thread_id
+    text = message.get('text', '')
+    reply_to = message.get('reply_message', {}).get('id', -1)
+    fwd_messages = message.get('fwd_messages', [])
+
+    if channel_id == '':
+        reply_to = -1
+    if reply_to != -1:
+            was = False
+            #for el in myclient[workspace]['messages'].find({}):
+            #    print(el)
+            for el in myclient[workspace]['messages'].find({'original_id': str(reply_to), 'thread_id': thread_id})\
+                                                     .sort([('message_id', 1)]):
+                reply_to = el['message_id']
+                was = True
+                print(el, reply_to)
+                break
+            print('ln104', was, reply_to)
+
+            if not was:
+                reply_to = -1
+
+    forwarded = []
+    for el in fwd_messages:
+        if channel_id == '':
+            break
+        #try:
+        msgs = process_vk_message(el, workspace, self_id, '', main_thread_id)
+        #except Exception as exp:
+        #    print(exp, el)
+        #    msgs = []
+        forwarded += msgs
+    sender_type = 'user'
+
+    if str(message['from_id']) == self_id:
+        sender_type = 'agent'
+        author_name = '??Agent??'
+        author = author_name
+    else:
+        sender_type = 'user'
+        author_name = f'VkUser{thread_id}'
+        author = f'VkUser{thread_id}'
+
+    msg = {
+            'text': text,
+            'author': author,
+            'author_name': author_name,
+            'author_type': sender_type,
+            'channel': CHANNEL,
+            'timestamp': timestamp,
+            'original_id': original_id,
+        }
+    if channel_id != '':
+        msg['thread_id'] = thread_id
+        msg['forwarded'] = forwarded
+        msg['channel_id'] = channel_id
+        msg['message_id'] = -1
+        msg['reply_to'] = reply_to
+
+    was = False
+    print(message)
+    res = []
+    for attachment in message.get('attachments', []):
+        ftype = 'file'
+        if attachment['type'] == 'photo':
+            ftype = 'image'
+            file = attachment[attachment['type']]
+            caption = file.get('caption', '')
+            url = None
+            mx_sz = 0
+            for el in file['sizes']:
+                curr_sz = el['width'] * el['height']
+                if curr_sz > mx_sz:
+                    mx_sz = curr_sz
+                    url = el['url']
+            if url is None:
+                continue
+        else:
+            url = attachment[attachment['type']]['url']
+            caption = attachment[attachment['type']].get('title', '')
+        print(url, caption)
+
+        r = requests.get(url)
+        fpath = f'/tmp/{gen_random_string(30)}'
+        with open(fpath, 'wb') as f:
+            f.write(r.content)
+
+        content = get_b64_file(fpath)
+        os.remove(fpath)
+
+        file_name = urlparse(url).path
+        file_name = file_name[file_name.rfind('/') + 1:]
+        attachment = {'type': ftype, 'content': content,
+                      'name': file_name, 'caption': caption}
+
+        if 'attachments' not in msg:
+            msg['attachments'] = attachment
+        msg['attachments'].append(attachment)
+
+    print(msg, len(text))
+    res.append(msg)
+
+    for i in range(len(res)):
+        if 'message_id' not in res[i]:
+            orid = res[i]['original_id']
+            res[i]['message_id'] = get_message_id_by_original_id(orid, main_thread_id, workspace)
+
+    return res
 
 def run(request):
     json_data = request.get_json(force=True)
@@ -86,86 +216,24 @@ def run(request):
     elif json_data['type'] == 'message_new':
         print(json_data)
         message = json_data['object']['message']
-        original_id = str(message['id'])
-        timestamp = message['date']
-        thread_id = str(message['from_id'])
         group_id = str(json_data['group_id'])
-        text = message.get('text', '')
-        reply_to = message.get('reply_message', {}).get('id', -1)
-        print('reply_to', reply_to)
-        if reply_to != -1:
-            was = False
-            for el in myclient[workspace]['messages'].find({}):
-                print(el)
-            for el in myclient[workspace]['messages'].find({'original_id': str(reply_to), 'thread_id': thread_id})\
-                                                     .sort([('message_id', 1)]):
-                reply_to = el['message_id']
-                was = True
-                print(el, reply_to)
-                break
-            print('ln104', was, reply_to)
-
-            if not was:
-                reply_to = -1
-
-        msg = {
-                'mtype': 'text',
-                'text': text,
-                'author': f'VkUser{thread_id}',
-                'author_name': f'VkUser{thread_id}',
-                'author_type': 'user',
-                'thread_id': thread_id,
-                'channel': CHANNEL,
-                'channel_id': str(result['_id']),
-                'timestamp': timestamp,
-                'message_id': -1,
-                'reply_to': reply_to,
-                'original_id': original_id
-            }
-        was = False
-        print(message)
-        for attachment in message.get('attachments', []):
-            mtype = 'file'
-            if attachment['type'] == 'photo':
-                mtype = 'image'
-                file =attachment[attachment['type']]
-                caption = file.get('caption', '')
-                url = None
-                mx_sz = 0
-                for el in file['sizes']:
-                    curr_sz = el['width'] * el['height']
-                    if curr_sz > mx_sz:
-                        mx_sz = curr_sz
-                        url = el['url']
-                if url is None:
-                    continue
-            else:
-                url = attachment[attachment['type']]['url']
-            print(url)
-            r = requests.get(url)
-            fpath = f'/tmp/{gen_random_string(30)}'
-            with open(fpath, 'wb') as f:
-                f.write(r.content)
-
-            content = get_b64_file(fpath)
-            os.remove(fpath)
-
-            msg['content'] = content
-            fb_file_name = urlparse(url).path
-            file_format = fb_file_name[fb_file_name.rfind('/') + 1:]
-            print(file_format)
-            if '.' in file_format:
-                file_format = file_format[file_format.find('.') + 1:]
-            else:
-                file_format = ''
-            msg['file_format'] = file_format
-            msg['mtype'] = mtype
-
-            print(msg)
-            add_new_message(workspace, msg) # warning
-            was = True
-        print(was, len(text))
-        if not was and len(text) != 0:
-            add_new_message(workspace, msg)
-
+        msgs = process_vk_message(message, workspace, group_id, str(result['_id']))
+        add_new_messages(workspace, msgs)
         return "ok"
+    elif json_data['type'] == 'message_edit':
+        print(json_data)
+        message = json_data['object']
+        group_id = str(json_data['group_id'])
+        msgs = process_vk_message(message, workspace, group_id, str(result['_id']))
+
+        if len(msgs) == 0:
+            return 'ok'
+
+        orid = msgs[0].get('original_id', '')
+        cnt = 1
+        for el in myclient[workspace]['messages'].find({'original_id': orid}).sort([('mversion', -1)]):
+            cnt = el['mversion'] + 1
+        for i in range(len(msgs)):
+            msgs[i]['mversion'] = cnt
+        add_new_messages(workspace, msgs)
+        return 'ok'
