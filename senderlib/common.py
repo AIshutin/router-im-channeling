@@ -8,9 +8,14 @@ import base64
 from bson.objectid import ObjectId
 import bson
 from datetime import datetime
+import os
+import logging
 
-SECRET_INTERNAL_KEY = 'DaGKO1awbMaZ1WgeaLUQ'
-BASE_URL = 'https://cerebra-test.herokuapp.com/'
+SECRET_INTERNAL_KEY = os.getenv('SECRET_INTERNAL_KEY', 'DaGKO1awbMaZ1WgeaLUQ')
+BASE_URL = os.getenv('BASE_URL', 'https://cerebra-test.herokuapp.com/')
+
+logging.info(f'{SECRET_INTERNAL_KEY} used as SECRET_INTERNAL_KEY')
+logging.info(f'{BASE_URL} used as BASE_URL')
 
 alphabet=list('0123456789')
 for i in range(26):

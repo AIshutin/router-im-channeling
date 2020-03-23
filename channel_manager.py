@@ -8,8 +8,8 @@ from senderlib.common import Channels, Message, Id
 from bson.objectid import ObjectId
 import logging
 from datetime import datetime
-
-logging.basicConfig(level=logging.DEBUG)
+import os
+logging.debug('This is debug message')
 
 class CredentialsNotFound(Exception):
     def __init__(self, name: Channels):
@@ -17,8 +17,14 @@ class CredentialsNotFound(Exception):
     def __str__(self):
         return f"{self.name} credentials not found"
 
-MONGO_PASSWORD = '8jxIlp0znlJm8qhL'
-MONGO_LINK = f'mongodb+srv://cerebra-autofaq:{MONGO_PASSWORD}@testing-pjmjc.gcp.mongodb.net/test?retryWrites=true&w=majority'
+MONGO_PASSWORD = os.getenv('MONGO_PASSWORD', '8jxIlp0znlJm8qhL')
+MONGO_LINK = os.getenv('MONGO_LINK', f'mongodb+srv://cerebra-autofaq:'
+                                     f'{MONGO_PASSWORD}@testing-pjmjc.'
+                                     'gcp.mongodb.net/test?retryWrites'
+                                     '=true&w=majority')
+logging.info(f'{MONGO_LINK} used as MONGO_LINK')
+logging.info(f'{MONGO_PASSWORD} used as MONGO_PASSWORD')
+
 myclient = pymongo.MongoClient(MONGO_LINK)
 channels = myclient['SERVICE']['channels']
 messages = myclient['SERVICE']['messages']
@@ -26,6 +32,9 @@ messages = myclient['SERVICE']['messages']
 app = FastAPI()
 
 def upsert_channel(channel: Channels, credentials):
+    res = channels.find_one({'channel_type': channel, 'credentials': credentials.dict()})
+    if res is not None:
+        return {'channel_id': str(res['_id'])}
     webhook_token = senderlib.add_channel(channel, credentials)
     logging.debug(webhook_token)
 
@@ -91,7 +100,7 @@ def send_message(message: Message = Body(..., embed=True)):
     credentials = credentials['credentials']
 
     message.channel = channel
-    message.server_timestamp = message.timestamp = datetime.timestamp(datetime.utcnow())
+    message.server_timestamp = message.timestamp = int(datetime.timestamp(datetime.utcnow()) * 1000)
     logging.debug(message.dict())
 
     replied = None
@@ -105,4 +114,4 @@ def send_message(message: Message = Body(..., embed=True)):
     logging.debug('IDs', resp)
     message.original_ids = resp
     return {'id': str(add_new_message(message.dict())), 'original_ids': message.original_ids,
-            'service_timestamp': message.service_timestamp}
+            'server_timestamp': message.server_timestamp}

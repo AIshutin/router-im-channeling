@@ -15,8 +15,10 @@ import logging
 import shutil
 
 CHANNEL = Channels.tg
-API_ID = "1087174"
-API_HASH = "3370ae6b2b06dad548626a0fdafc14dc"
+API_ID = os.getenv('API_ID', "1087174")
+API_HASH = os.getenv('API_HASH', "3370ae6b2b06dad548626a0fdafc14dc")
+logging.info(f'{API_ID} used as API_ID for Telegram')
+logging.info(f'{API_HASH} used as API_HASH for Telegram')
 
 FILE_REMOVE_DELAY = 60 * 3
 

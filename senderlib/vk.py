@@ -12,9 +12,15 @@ import base64
 import pydantic
 from typing import Optional, List
 import vk_api
+import logging
 
 CHANNEL = Channels.vk
-SECRET_VK_KEY = '9YAVEQAraTr4pClNDjvg'
+
+SECRET_VK_KEY = os.getenv('SECRET_VK_KEY', '9YAVEQAraTr4pClNDjvg')
+VK_RQ_DELAY = int(os.getenv('VK_RQ_DELAY', 6))
+
+logging.info(f'{SECRET_VK_KEY} used as SECRET_VK_KEY')
+logging.info(f'{VK_RQ_DELAY} used as VK_RQ_DELAY')
 
 class VkCredentials(pydantic.BaseModel):
     token: str
@@ -82,7 +88,7 @@ def send_message(message: Message, credentials: VkCredentials, replied: Optional
 
 SERVER_TITLE = 'router-im'
 
-def data_flow_hack(credentials: VkCredentials, tail, delay=6):
+def data_flow_hack(credentials: VkCredentials, tail, delay=VK_RQ_DELAY):
     """
     We need to add tail information to db before Vk confirmation request.
     Thus, we'll add server to vk after {delay}.

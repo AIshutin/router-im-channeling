@@ -6,7 +6,12 @@ pydantic
 python-telegram-bot
 requests
 uvicorn
+<<<<<<< HEAD:requirements.txt
 vk_api
 requests
 six
 functions-framework>=1.2.0
+=======
+dnspython
+vk_api
+>>>>>>> master:channel_manager/requirements.txt
