@@ -12,6 +12,7 @@ import base64
 import pydantic
 from typing import Optional, List
 import json
+import logging
 
 class FbCredentials(pydantic.BaseModel):
     token: str
@@ -31,14 +32,13 @@ def send_message(message: Message, credentials: FbCredentials, replied=Optional[
 
     original_ids = []
 
-    if message.mtype == MessageType.text:
+    if message.text is not None and len(message.text) != 0:
         json_data = {"messaging_type": "UPDATE",
-                    "attachment":{
-                      "type": mtype,
-                      "payload":{
-                        "url":"http://www.messenger-rocks.com/image.jpg",
-                        "is_reusable": True
-                      }
+                    "recipient":{
+                      "id": message.thread_id
+                    },
+                    "message":{
+                      "text": message.text
                     }
                   }
         resp = requests.post(link, json=json_data)
@@ -55,15 +55,14 @@ def send_message(message: Message, credentials: FbCredentials, replied=Optional[
             fdir = f'/tmp/{gen_random_string(30)}/'
             os.mkdir(fdir)
             fpath = fdir + attachment.name
-            save_b64_to_file(message.content, fpath)
+            save_b64_to_file(attachment.content, fpath)
             maintype, subtype = get_mime_type(fpath)
 
 
             message_str = 'message={"attachment":{"type":"' + type + '","payload":{"is_reusable":true}}}'
             filedata_str = f'filedata=@{fpath};type={maintype}/{subtype}'
-
             link = f'https://graph.facebook.com/v6.0/me/message_attachments?access_token={credentials.token}'
-            command = f'curl \'{link}\' -F \'{message_str}\' -F \'{filedata_str}\' >{fdir}out.txt'
+            command = f'curl \'{link}\' -F \'{message_str}\' -F \'{filedata_str}\' > {fdir}out.txt'
             code = os.system(command)
             if code != 0:
                 logging.warning(f'Attachment {attachment} was not sent to FB')
@@ -73,8 +72,21 @@ def send_message(message: Message, credentials: FbCredentials, replied=Optional[
             logging.debug(attachment_id)
 
 
-
-            response = requests.post(link, files=files, json=data)
+            link = f'https://graph.facebook.com/v6.0/me/messages?access_token={credentials.token}'
+            data = {"recipient": {
+                        "id": message.thread_id
+                        },
+                    "message":{
+                        "attachment":{
+                        "type": type,
+                        "payload":{
+                            "attachment_id": attachment_id
+                            }
+                        }
+                    },
+                    "messaging_type": "UPDATE",
+                }
+            response = requests.post(link, json=data)
             print(response.text)
             response.raise_for_status()
             # response.json()['message_id']
