@@ -2,7 +2,8 @@
 from telegram import Bot
 from typing import Optional
 from .common import Message, Channels, ChannelCredentials, gen_random_string, \
-                    BASE_URL, SECRET_INTERNAL_KEY, MessageType, get_mime_type
+                    BASE_URL, SECRET_INTERNAL_KEY, MessageType, get_mime_type, \
+                    AttachmentType
 import threading
 import requests
 import os
@@ -45,23 +46,23 @@ def send_message(message: Message, credentials: TgCredentials, replied=Optional[
             random_name = gen_random_string(30)
             fdir = f'/tmp/{random_name}'
             os.mkdir(fdir)
-            fname = f'{fidr}/{attachment.name}'
+            fname = f'{fdir}/{attachment.name}'
             with open(fname, 'wb') as file:
                 file.write(bytes)
 
-            caption = message.text
+            caption = attachment.caption
             if caption == '':
                 caption = None
 
-            if message.mtype == MessageType.image:
+            if attachment.type == AttachmentType.image:
                 original_id = bot.send_photo(chat_id=chat_id,
                                             photo=open(fname, 'rb'),
                                             caption=caption)['message_id']
-            elif message.mtype == MessageType.file:
+            elif attachment.mtype == AttachmentType.file:
                 original_id = bot.send_document(chat_id=chat_id,
                                                 document=open(fname, 'rb'),
                                                 caption=caption)['message_id']
-            shutil.rm_tree(fname)
+            shutil.rmtree(fdir)
             original_ids.append(original_id)
     logging.info('SENT')
     logging.debug(original_ids)

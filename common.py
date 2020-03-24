@@ -40,4 +40,4 @@ def gen_random_string(length=30):
     return ''.join([alphabet[random.randint(0, len(alphabet) - 1)] for i in range(length)])
 
 def get_server_timestamp():
-    return datetime.timestamp(datetime.utcnow())
+    return int(datetime.timestamp(datetime.utcnow()) * 1000)

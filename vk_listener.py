@@ -18,6 +18,8 @@ import mimetypes
 from common import *
 import logging
 
+CHANNEL = 'vk'
+
 def process_vk_message(message, workspace: str, self_id: str, channel_id: str="", main_thread_id: str=""):
     original_id = str(message.get('id', ''))
     timestamp = message['date']

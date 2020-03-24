@@ -17,7 +17,9 @@ import random
 import os
 from urllib.parse import urlparse
 import logging
+from common import *
 
+CHANNEL = 'fb'
 SECRET_FB_KEY = "StFL2meTu5go8tcrHF7J"
 def validate_hub_signature(request_payload, hub_signature_header, app_secret=SECRET_FB_KEY):
     return True
@@ -57,11 +59,10 @@ def run(request):
                 logging.info('recipient_id', recipient_id)
                 logging.info('sender_id', sender_id)
                 logging.info('text', text)
-                result = myclient[TAIL_DB][TAIL_COLL].find_one({'tail': recipient_id})
+                result = channels.find_one({'webhook_token': recipient_id})
                 if result is None:
                     logging.info(f"No workspace exist for recipient_id {recipient_id}")
                     continue
-                workspace = result['workspace']
 
                 msg = {
                     'mtype': 'text',
@@ -73,16 +74,16 @@ def run(request):
                     'channel': CHANNEL,
                     'channel_id': str(result['_id']),
                     'timestamp': time, # miliseconds
-                    'message_id': -1,
-                    'original_id': messaging['message']['mid'],
+                    'server_timestamp': get_server_timestamp(),
+                    'original_ids': [messaging['message']['mid']],
                 }
 
                 if 'reply_to' in messaging['message']:
                     mid = messaging['message']['reply_to']['mid']
                     reply_id = -1
-                    for el in myclient[workspace]['messages'].find({'original_id': mid, 'thread_id': sender_id})\
-                                                             .sort([('message_id', 1)]):
-                        reply_id = el['message_id']
+                    for el in messages.find({'original_id': mid, 'thread_id': sender_id})\
+                                                             .sort([('service_timestamp', 1)]):
+                        reply_id = str(el['_id'])
                         break
                     logging.debug(reply_id)
                     msg['reply_id'] = reply_id
