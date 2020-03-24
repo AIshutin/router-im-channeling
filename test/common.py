@@ -117,7 +117,7 @@ def add_attr_dict(clss, channel, credentials, thread, messages=[('text', text_me
     for message in messages:
         name = f"test_{channel}_{message[0]}"
         setattr(clss, '_' + name, SenderClass(channel, credentials, thread, message[-1]))
-        setattr(clss, name, lambda self: _dirty_func(self))
+        setattr(clss, name, lambda self: _dirty_magic(self))
     return clss
 
 def duplicate_upsertion(channel, credentials):
