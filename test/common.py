@@ -80,7 +80,7 @@ def send_message(message):
     assert(resp.status_code == 200)
     data =resp.json()
     assert('id' in data and len(data['id']) != 0)
-    assert('original_ids' in data and len(data['original_ids']) != 0)
+    assert('original_ids' in data)
     assert('server_timestamp' in data and data['server_timestamp'] > 1e12)
     return data
 
