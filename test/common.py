@@ -84,14 +84,6 @@ def send_message(message):
     assert('server_timestamp' in data and data['server_timestamp'] > 1e12)
     return data
 
-def _test_send_message(channel, credentials, thread, message):
-    message = copy.deepcopy(message)
-    channel_id = upsert_channel(channel, credentials)
-    message['channel_id'] = channel_id
-    message['thread_id'] = thread
-    send_message(message)
-    remove_channel(channel_id)
-
 class SenderClass:
     def __init__(self, channel, credentials, thread, message):
         self.channel = channel
@@ -110,7 +102,13 @@ class SenderClass:
         send_message(self.message)
         remove_channel(self.channel, self.credentials, channel_id)
 
-def _dirty_func(self):
+def _dirty_magic(self):
+    """
+    Discovers name of the method which ran it using pytest environment variable.
+    Then runs SenderClass instance based on the name.
+
+    Reason behind: Pytest can not run classes, only functions
+    """
     name = os.environ.get('PYTEST_CURRENT_TEST').split(':')[-1].split(' ')[0]
     getattr(self, '_' + name)()
 
