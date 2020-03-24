@@ -27,7 +27,7 @@ def send_message(message: Message, credentials: FbCredentials, replied=Optional[
         for el in message.forwarded:
             text = fallback_forward(el) + text
 
-    if message.reply_to is not None and message.reply_to != -1:
+    if replied is not None:
         text = fallback_reply_to(replied) + text
 
     original_ids = []
@@ -38,7 +38,7 @@ def send_message(message: Message, credentials: FbCredentials, replied=Optional[
                       "id": message.thread_id
                     },
                     "message":{
-                      "text": message.text
+                      "text": text
                     }
                   }
         resp = requests.post(link, json=json_data)

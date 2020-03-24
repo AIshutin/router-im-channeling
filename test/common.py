@@ -5,6 +5,7 @@ import base64
 import copy
 import requests
 import inspect
+import logging
 API_URL = os.getenv('API_URL', "http://localhost:2000")
 
 text_message = {'mtype': 'message',
@@ -29,6 +30,9 @@ image_message = {'mtype': 'message',
                      'name': os.path.basename(image_path)
                     }
                 ]}
+
+reply_text_message = copy.deepcopy(text_message)
+reply_text_message['reply_to'] = -1
 
 def get_mongo_pass():
     MONGO_PASSWORD = os.getenv('MONGO_PASSWORD', '8jxIlp0znlJm8qhL')
@@ -99,7 +103,13 @@ class SenderClass:
         self.was = True
         channel_id = upsert_channel(self.channel, self.credentials)
         self.message['channel_id'] = channel_id
-        send_message(self.message)
+        if 'reply_to' in self.message:
+            self.message.pop('reply_to')
+            res = send_message(self.message)
+            self.message['reply_to'] = res['id']
+            send_message(self.message)
+        else:
+            send_message(self.message)
         remove_channel(self.channel, self.credentials, channel_id)
 
 def _dirty_magic(self):
@@ -113,7 +123,8 @@ def _dirty_magic(self):
     getattr(self, '_' + name)()
 
 def add_attr_dict(clss, channel, credentials, thread, messages=[('text', text_message),
-                                                             ('image', image_message)]):
+                                                             ('image', image_message),
+                                                             ('reply_text', reply_text_message)]):
     for message in messages:
         name = f"test_{channel}_{message[0]}"
         setattr(clss, '_' + name, SenderClass(channel, credentials, thread, message[-1]))

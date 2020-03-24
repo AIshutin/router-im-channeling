@@ -52,6 +52,7 @@ class Id(ObjectId):
             if isinstance(v, str):
                 res = ObjectId(v)
         except bson.errors.InvalidId:
+            logging.info(f'{v} is not ObjectId')
             raise TypeError(f'{v} is not ObjectId')
         return res
 
@@ -125,7 +126,7 @@ class Message(ForwardedMessage):
     channel_id: Id
     thread_id: str = ""
     forwarded: Optional[List[ForwardedMessage]] = None
-    reply_to: Optional[int] = -1
+    reply_to: Optional[Id] = None
     mversion: int = 0
     server_timestamp: Optional[int]
 
@@ -133,7 +134,7 @@ MAX_CITATION = 40
 def fallback_reply_to(replied: Message):
     if replied is None:
         return ""
-    print(replied.dict())
+    logging.debug(replied.dict())
     dt_object = datetime.utcfromtimestamp(replied.timestamp/1000) # in which timezone?
     msg_info = ""
     if len(replied.text) > 0:
@@ -141,9 +142,14 @@ def fallback_reply_to(replied: Message):
         if len(replied.text) > MAX_CITATION:
             msg_info = msg_info + '...'
     else:
-        msg_info = replied.file_format
+        msg_info = ""
+        for el in replied.attachments:
+            if msg_info != "":
+                msg_info = msg_info + "| "
+            msg_info = msg_info + el.name
 
     prefix = f"[{dt_object} UTC] > {msg_info}\n"
+    logging.debug(prefix)
     return prefix
 
 def fallback_forward(forwarded: Message):

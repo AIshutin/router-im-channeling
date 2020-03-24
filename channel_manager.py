@@ -104,14 +104,15 @@ def send_message(message: Message = Body(..., embed=True)):
     logging.debug(message.dict())
 
     replied = None
-    if message.reply_to is not None and message.reply_to != -1:
-        replied = messages.find_one({'message_id': message.reply_to})
+    if message.reply_to is not None:
+        logging.debug(message.reply_to)
+        replied = messages.find_one({'_id': message.reply_to})
+        replied['id'] = replied['_id']
         replied.pop('_id')
         logging.debug(replied)
         replied = Message(**replied)
         replied.channel = channel
     resp = senderlib.send_message(channel, message, credentials, replied=replied)
-    logging.debug('IDs', resp)
     message.original_ids = resp
     return {'id': str(add_new_message(message.dict())), 'original_ids': message.original_ids,
             'server_timestamp': message.server_timestamp}
