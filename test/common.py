@@ -6,6 +6,9 @@ import copy
 import requests
 import inspect
 import logging
+import time
+
+logging.basicConfig(level=logging.DEBUG)
 API_URL = os.getenv('API_URL', "http://localhost:2000")
 
 text_message = {'mtype': 'message',
@@ -31,8 +34,28 @@ image_message = {'mtype': 'message',
                     }
                 ]}
 
+doc_path = './sample_doc.txt'
+doc_message = {'mtype': 'message',
+                'text': 'some text',
+                'author': 'Bob',
+                'author_name': 'Bob Sanderson',
+                'author_type': 'agent',
+                'attachments': [
+                    {'type': 'file',
+                     'content': base64.b64encode(open(doc_path, 'rb').read()).decode("utf-8"),
+                     'caption': 'some_caption',
+                     'name': os.path.basename(doc_path)
+                    }
+                ]}
+
 reply_text_message = copy.deepcopy(text_message)
 reply_text_message['reply_to'] = -1
+
+reply_image_message = copy.deepcopy(image_message)
+reply_image_message['reply_to'] = -1
+
+forward_text_message = copy.deepcopy(text_message)
+forward_text_message['forwarded'] = [copy.deepcopy(forward_text_message)]
 
 def get_mongo_pass():
     MONGO_PASSWORD = os.getenv('MONGO_PASSWORD', '8jxIlp0znlJm8qhL')
@@ -103,12 +126,27 @@ class SenderClass:
         self.was = True
         channel_id = upsert_channel(self.channel, self.credentials)
         self.message['channel_id'] = channel_id
-        if 'reply_to' in self.message:
+        REPLY_TO = 'reply_to' in self.message
+        if REPLY_TO:
             self.message.pop('reply_to')
-            res = send_message(self.message)
+        FORWARDED = 'forwarded' in self.message and len(self.message['forwarded']) != 0
+        if FORWARDED:
+            msgs = copy.deepcopy(self.message['forwarded'])
+            for i in range(len(msgs)):
+                msgs[i]['channel_id'] = channel_id
+                msgs[i]['thread_id'] = self.message['thread_id']
+                upd = send_message(msgs[i])
+                msgs[i].pop('channel_id')
+                msgs[i].pop('thread_id')
+                msgs[i]['id'] = upd['id']
+                msgs[i]['original_ids'] = upd['original_ids']
+                msgs[i]['timestamp'] = upd['timestamp']
+                logging.debug(f"message for forwading: {msgs[i]}")
+            self.message['forwarded'] = msgs
+            logging.debug(f"final mesage: {self.message}")
+        res = send_message(self.message)
+        if REPLY_TO:
             self.message['reply_to'] = res['id']
-            send_message(self.message)
-        else:
             send_message(self.message)
         remove_channel(self.channel, self.credentials, channel_id)
 
@@ -124,7 +162,10 @@ def _dirty_magic(self):
 
 def add_attr_dict(clss, channel, credentials, thread, messages=[('text', text_message),
                                                              ('image', image_message),
-                                                             ('reply_text', reply_text_message)]):
+                                                             ('reply_text', reply_text_message),
+                                                             ('reply_image', reply_image_message),
+                                                             ('forward_text', forward_text_message),
+                                                             ('doc', doc_message)]):
     for message in messages:
         name = f"test_{channel}_{message[0]}"
         setattr(clss, '_' + name, SenderClass(channel, credentials, thread, message[-1]))

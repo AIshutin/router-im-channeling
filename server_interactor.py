@@ -82,9 +82,10 @@ def loop(message, live=live):
         live -= 1
 
         for msg in myclient['SERVICE']['messages'].find({}):
-            print(msg, last_timestamp)
+
             if msg['server_timestamp'] <= last_timestamp:
                 continue
+            print(msg, last_timestamp)
             last_timestamp = msg['server_timestamp']
             if msg['author_type'] == 'agent':
                 continue

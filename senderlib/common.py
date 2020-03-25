@@ -78,6 +78,8 @@ class ImageAttachment(FileAttachment):
     type: AttachmentType = AttachmentType.image
     assert(type == AttachmentType.image)
 
+Attachment = Union[FileAttachment, ImageAttachment]
+
 class Channels(str, Enum):
     tg = 'tg'
     tg_bot = 'tg_bot'
@@ -118,7 +120,7 @@ class ForwardedMessage(BaseModel):
     author_type: AuthorType
     channel: Optional[Channels]
     timestamp: Optional[int]
-    service_timestamp: Optional[int]
+    server_timestamp: Optional[int]
     original_ids: Optional[List[str]] = None
     email_subject: Optional[str] = None
 
@@ -128,7 +130,6 @@ class Message(ForwardedMessage):
     forwarded: Optional[List[ForwardedMessage]] = None
     reply_to: Optional[Id] = None
     mversion: int = 0
-    server_timestamp: Optional[int]
 
 MAX_CITATION = 40
 def fallback_reply_to(replied: Message):
@@ -154,3 +155,15 @@ def fallback_reply_to(replied: Message):
 
 def fallback_forward(forwarded: Message):
     return fallback_reply_to(forwarded)
+
+def fallback_attachment_caption(attachment: Attachment, only_format=False):
+    if attachment.caption is None or attachment.caption == '':
+        return ''
+    name = attachment.name
+    if only_format:
+        if '.' in name:
+            name = name[name.find('.'):]
+        else:
+            name = "file"
+    res = f"|> {name}: {attachment.caption}\n"
+    return res

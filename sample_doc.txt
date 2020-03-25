@@ -1,0 +1,9 @@
+This is a sample document.
+
+<h1>This is not a h1 header</h1>
+
+<script>alert('This should be escaped')</script>
+
+...
+
+Юникод это хорошо

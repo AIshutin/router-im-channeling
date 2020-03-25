@@ -1,6 +1,9 @@
 import pymongo
 from datetime import datetime
 import base64
+import logging
+import random
+logging.basicConfig(level=logging.DEBUG)
 
 MONGO_PASSWORD = '8jxIlp0znlJm8qhL'
 MONGO_LINK = f'mongodb+srv://cerebra-autofaq:{MONGO_PASSWORD}@testing-pjmjc.gcp.mongodb.net/test?retryWrites=true&w=majority'
@@ -18,15 +21,12 @@ def parse_path(path):
     assert(len(parts) == 2 or len(parts) == 1)
     return parts
 
-def get_message_id_by_original_id(original_id, thread_id, workspace):
+def get_message_id_by_original_id(original_id, thread_id):
     if original_id == '':
-        return -1
-    ans = -1
-    for el in myclient[workspace]['messages'].find({'original_id': str(original_id), 'thread_id': thread_id})\
-                                             .sort([('message_id', 1)]):
-        ans = el['message_id']
-        break
-    return ans
+        return None
+    for el in messages.find({'original_ids': str(original_id), 'thread_id': thread_id})\
+                                             .sort([('server_timestamp', 1)]):
+        return el['_id']
 
 def add_new_message(message):
     return messages.insert_one(message).inserted_id

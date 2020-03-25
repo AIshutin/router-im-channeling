@@ -115,4 +115,4 @@ def send_message(message: Message = Body(..., embed=True)):
     resp = senderlib.send_message(channel, message, credentials, replied=replied)
     message.original_ids = resp
     return {'id': str(add_new_message(message.dict())), 'original_ids': message.original_ids,
-            'server_timestamp': message.server_timestamp}
+            'server_timestamp': message.server_timestamp, 'timestamp': message.timestamp}

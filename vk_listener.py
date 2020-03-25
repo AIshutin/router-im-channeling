@@ -19,8 +19,9 @@ from common import *
 import logging
 
 CHANNEL = 'vk'
+SECRET_VK_KEY = os.getenv('SECRET_VK_KEY', '9YAVEQAraTr4pClNDjvg')
 
-def process_vk_message(message, workspace: str, self_id: str, channel_id: str="", main_thread_id: str=""):
+def process_vk_message(message, self_id: str, channel_id: str="", main_thread_id: str=""):
     original_id = str(message.get('id', ''))
     timestamp = message['date']
     thread_id = str(message['from_id'])
@@ -34,14 +35,13 @@ def process_vk_message(message, workspace: str, self_id: str, channel_id: str=""
         reply_to = -1
     if reply_to != -1:
             was = False
-            for el in myclient[workspace]['messages'].find({'original_id': str(reply_to), 'thread_id': thread_id})\
-                                                     .sort([('message_id', 1)]):
-                reply_to = el['message_id']
+            for el in messages.find({'original_ids': str(reply_to), 'thread_id': thread_id})\
+                                                     .sort([('server_timestamp', 1)]):
+                reply_to = el['_id']
                 was = True
-                print(el, reply_to)
+                logging.debug(f"message: {el}; reply_to: {reply_to}")
                 break
-            logging.debug(was, reply_to)
-
+            logging.debug(f"was: {was}; reply_to: {reply_to}")
             if not was:
                 reply_to = -1
 
@@ -49,7 +49,7 @@ def process_vk_message(message, workspace: str, self_id: str, channel_id: str=""
     for el in fwd_messages:
         if channel_id == '':
             break
-        msgs = process_vk_message(el, workspace, self_id, '', main_thread_id)
+        msgs = process_vk_message(el, self_id, '', main_thread_id)
         forwarded += msgs
     sender_type = 'user'
 
@@ -69,7 +69,8 @@ def process_vk_message(message, workspace: str, self_id: str, channel_id: str=""
             'author_type': sender_type,
             'channel': CHANNEL,
             'timestamp': timestamp,
-            'original_id': original_id,
+            'server_timestamp': get_server_timestamp(),
+            'original_ids': [original_id],
         }
     if channel_id != '':
         msg['thread_id'] = thread_id
@@ -115,16 +116,17 @@ def process_vk_message(message, workspace: str, self_id: str, channel_id: str=""
                       'name': file_name, 'caption': caption}
 
         if 'attachments' not in msg:
-            msg['attachments'] = attachment
+            msg['attachments'] = []
         msg['attachments'].append(attachment)
 
-    logging.debug(msg, len(text))
+    logging.debug(f"msg: {msg}; text length: {len(text)}")
     res.append(msg)
 
-    for i in range(len(res)):
-        if 'message_id' not in res[i]:
-            orid = res[i]['original_id']
-            res[i]['message_id'] = get_message_id_by_original_id(orid, main_thread_id, workspace)
+    if main_thread_id == '':
+        for i in range(len(res)):
+            if 'id' not in res[i]:
+                orid = res[i]['original_ids'][0]
+                res[i][id] = get_message_id_by_original_id(orid, main_thread_id)
 
     return res
 
@@ -158,14 +160,14 @@ def run(request):
         logging.debug(json_data)
         message = json_data['object']['message']
         group_id = str(json_data['group_id'])
-        msgs = process_vk_message(message, workspace, group_id, str(result['_id']))
+        msgs = process_vk_message(message, group_id, str(result['_id']))
         assert(len(msgs) == 1)
         add_new_message(msgs[0])
     elif json_data['type'] == 'message_edit':
         logging.debug(json_data)
         message = json_data['object']
         group_id = str(json_data['group_id'])
-        msgs = process_vk_message(message, workspace, group_id, str(result['_id']))
+        msgs = process_vk_message(message, group_id, str(result['_id']))
 
         if len(msgs) == 0:
             return 'ok'
