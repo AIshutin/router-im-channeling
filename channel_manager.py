@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 import senderlib
 from senderlib.fb import FbCredentials
 from senderlib.vk import VkCredentials
+from senderlib.mail import EmailCredentials
 from senderlib.common import Channels, Message, Id
 from bson.objectid import ObjectId
 import logging
@@ -58,6 +59,10 @@ def upsert_fb(credentials: FbCredentials = Body(..., embed=True)):
 @app.post('/upsert_channel/vk/')
 def upsert_fb(credentials: VkCredentials = Body(..., embed=True)):
     return upsert_channel(Channels.vk, credentials)
+
+@app.post('/upsert_channel/email/')
+def upsert_fb(credentials: EmailCredentials = Body(..., embed=True)):
+    return upsert_channel(Channels.email, credentials)
 
 @app.post('/remove_channel')
 def remove_channel(channel_id: Id = Body(..., embed=True)):

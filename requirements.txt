@@ -11,3 +11,4 @@ requests
 six
 functions-framework>=1.2.0
 pycurl
+aioimaplib

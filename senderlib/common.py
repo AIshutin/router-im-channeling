@@ -125,11 +125,17 @@ class ForwardedMessage(BaseModel):
     email_subject: Optional[str] = None
 
 class Message(ForwardedMessage):
+    """
+    @ unedited - if mtype is MessageType.edit, Id of unedited message. Otherwise, \
+    it's channel specific parameter which helps to find this message for linking \
+    edited versions to it. Must be ommited when sending message to channel manager.
+    """
     channel_id: Id
     thread_id: str = ""
     forwarded: Optional[List[ForwardedMessage]] = None
     reply_to: Optional[Id] = None
     mversion: int = 0
+    unedited: Optional[Union[str, Id]] = None
 
 MAX_CITATION = 40
 def fallback_reply_to(replied: Message):

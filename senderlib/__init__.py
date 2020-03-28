@@ -15,6 +15,11 @@ from .vk import send_message as vk_send_message
 from .vk import remove_channel as vk_remove_channel
 from .vk import VkCredentials as vkcredentials
 
+from .mail import add_channel as email_add_channel
+from .mail import send_message as email_send_message
+from .mail import remove_channel as email_remove_channel
+from .mail import EmailCredentials as emailcredentials
+
 from pydantic import BaseModel
 from typing import Optional, List, Union
 
@@ -33,4 +38,4 @@ def remove_channel(channel, credentials):
 class Credentials(BaseModel):
     channel_type: Channels
     webhook_token: str
-    credentials: Union[fbcredentials, vkcredentials, tg_botcredentials]
+    credentials: Union[fbcredentials, vkcredentials, tg_botcredentials, emailcredentials]

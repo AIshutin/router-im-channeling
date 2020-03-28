@@ -27,7 +27,7 @@ class VkCredentials(pydantic.BaseModel):
     token: str
     self_id: str
 
-def send_message(message: Message, credentials: VkCredentials, replied: Optional[Message]=None) -> str:
+def send_message(message: Message, credentials: VkCredentials, replied: Optional[Message]=None):
     reply_to = replied
     vk = vk_api.VkApi(token=credentials.token).get_api()
     reply = None
@@ -125,15 +125,16 @@ def remove_channel(credentials: VkCredentials):
     cnt = 3
     while cnt > 0:
         result = vk.groups.getCallbackServers(group_id=int(credentials.self_id))
-        server_id = None
+        server_ids = []
         for el in result['items']:
             if el['title'] == SERVER_TITLE:
-                server_id = el['id']
-        if server_id is None:
+                server_ids.append(el['id'])
+        if server_id == []:
             cnt -= 1
             time.sleep(VK_RQ_DELAY)
             continue
-        vk.groups.deleteCallbackServer(group_id=int(credentials.self_id),
-                                       server_id=server_id)
+        for server_id in server_ids:
+            vk.groups.deleteCallbackServer(group_id=int(credentials.self_id),
+                                            server_id=server_id)
         return
     logging.warning(f'vk server {SERVER_TITLE} was not found')

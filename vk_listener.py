@@ -76,8 +76,11 @@ def process_vk_message(message, self_id: str, channel_id: str="", main_thread_id
         msg['thread_id'] = thread_id
         msg['forwarded'] = forwarded
         msg['channel_id'] = channel_id
-        msg['message_id'] = -1
         msg['reply_to'] = reply_to
+        msg['mversion'] = 0
+        msg['unedited'] = message.get('conversation_message_id', None)
+        if msg['unedited'] is not None:
+            msg['unedited'] = str(msg['unedited'])
 
     was = False
     logging.debug(message)
@@ -154,7 +157,7 @@ def run(request):
             code = vk.groups.getCallbackConfirmationCode(group_id=int(group_id))
             logging.info('code', code)
             code = code['code']
-            logging.info(group_id, code)
+            logging.info(f"group_id {group_id} code: {code}")
             return code
     elif json_data['type'] == 'message_new':
         logging.debug(json_data)
@@ -168,16 +171,26 @@ def run(request):
         message = json_data['object']
         group_id = str(json_data['group_id'])
         msgs = process_vk_message(message, group_id, str(result['_id']))
-
         if len(msgs) == 0:
             return 'ok'
 
-        orid = msgs[0].get('original_id', '')
+        orid = msgs[0].get('unedited')
         cnt = 1
-        for el in myclient[workspace]['messages'].find({'original_id': orid}).sort([('mversion', -1)]):
-            cnt = el['mversion'] + 1
+        unedited = None
+        logging.debug(f"conversation_message_id: {orid}")
+        original = messages.find_one({'unedited': orid})
+        logging.debug(f"original message: {original}")
+        if original is None:
+            logging.warning(f'No original message found for {msgs[0]}')
+            return 'ok'
+        msgs[0]['unedited'] = str(original['_id'])
+        for el in messages.find({'unedited': msgs[0]['unedited']}).sort([('mversion', -1)]):
+            cnt = el.get('mversion', 0) + 1
+            break
+        logging.debug(f"version: {cnt}")
         for i in range(len(msgs)):
             msgs[i]['mversion'] = cnt
+            msgs[i]['mtype'] = 'edit'
         assert(len(msgs) == 1)
         add_new_message(msgs[0])
     return 'ok'
