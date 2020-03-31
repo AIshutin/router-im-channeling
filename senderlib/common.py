@@ -7,6 +7,7 @@ import mimetypes
 import base64
 from bson.objectid import ObjectId
 import bson
+from datetime import timezone
 from datetime import datetime
 import os
 import logging
@@ -173,3 +174,9 @@ def fallback_attachment_caption(attachment: Attachment, only_format=False):
             name = "file"
     res = f"|> {name}: {attachment.caption}\n"
     return res
+
+def get_utc_timestamp():
+    dt = datetime.now()
+    utc_time = dt.replace(tzinfo = timezone.utc)
+    utc_timestamp = utc_time.timestamp()
+    return int(utc_timestamp)

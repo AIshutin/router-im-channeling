@@ -3,6 +3,9 @@ from argparse import ArgumentParser
 import pymongo
 import time
 import base64
+import logging
+import json
+logging.basicConfig(level=logging.DEBUG)
 
 def prepare_mongo(myclient):
     myclient.drop_database('SERVICE')
@@ -34,12 +37,14 @@ tg_credentials = {'token': '801339101:AAH7GQKB5-XK0czIV9U6GzkafkC1Hq25o0o'} # 's
 fb_credentials = {'self_id': '101962504709802',
                   'token': 'EAAIrF0hyVy0BALNlqxTKXsUC2YUnT4GzDMdG6LsYmVIO0y1ocBNcWHzrs26GYWDQr8m5A9aMMjGZBqzYtywW8JmWuAi0DGhGJGeeZA0kz5XCC6u2ptiRPaqfYbu9MRrZCn34JHWAbuFokGJ3E4Fpdjg1ERrSO2M2gkhzoSonwZDZD'}
 vk_credentials = {'code': '4c3e7bcf', 'token': '1895dbfc845d148eaf334224f661aa14d3cd641badb9eda096370d58efeca73e10d9a4040c9827d54c699', 'self_id': "190503682"}
+email_credentials = json.load(open('./email_credentials.json', 'r'))
 channel = args.channel
-all_credentials = {'tg_bot': tg_credentials, 'fb': fb_credentials, 'vk': vk_credentials}
+all_credentials = {'tg_bot': tg_credentials, 'fb': fb_credentials, 'vk': vk_credentials,
+                    'email': email_credentials}
 credentials = all_credentials[channel]
 if without_upserting is None:
     resp = requests.post(f'{url}upsert_channel/{channel}', json={'credentials': credentials})
-    print(resp.status_code, resp.text)
+    logging.info(f"{resp.status_code} {resp.text}")
     resp.raise_for_status()
     channel_id = resp.json()['channel_id']
 else:
@@ -72,7 +77,7 @@ def send_message(message):
             message['thread_id'] = '2673203139464950'
 
     resp = requests.post(f'{url}send_message', json={'message': message})
-    print(resp.text)
+    logging.info(resp.text)
     resp.raise_for_status()
     return resp
 
@@ -85,7 +90,7 @@ def loop(message, live=live):
 
             if msg['server_timestamp'] <= last_timestamp:
                 continue
-            print(msg, last_timestamp)
+            logging.debug(f"{msg} {last_timestamp}")
             last_timestamp = msg['server_timestamp']
             if msg['author_type'] == 'agent':
                 continue
@@ -105,11 +110,11 @@ def loop(message, live=live):
                 msg2.pop('thread_id', 0)
                 msg2.pop('_id', 0)
                 message['forwarded'] = [msg2]
-            if 'content' in message:
-                print(type(message['content']))
-            print(message)
+            #if 'attachments' in message:
+            #    print(type(message['attachments']))
+            logging.debug(message)
             send_message(message)
-            print('\n\n')
+            logging.debug('\n\n')
         time.sleep(5)
 
 loop(msg)
@@ -117,4 +122,4 @@ loop(msg)
 if without_upserting is None:
     resp = requests.post(f'{url}remove_channel', json={'workspace': workspace,
                                                     'channel_id': channel_id})
-    print(resp.text)
+    logging.info(resp.text)

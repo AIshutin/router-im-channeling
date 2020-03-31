@@ -1,7 +1,7 @@
 from .common import Message, Channels, ChannelCredentials, gen_random_string, \
                     BASE_URL, SECRET_INTERNAL_KEY, MessageType, get_mime_type, \
                     save_b64_to_file, fallback_reply_to, fallback_forward, \
-                    AttachmentType, fallback_attachment_caption
+                    AttachmentType, fallback_attachment_caption, get_utc_timestamp
 import threading
 import requests
 import os
@@ -32,12 +32,12 @@ def send_message(message: Message, credentials: EmailCredentials, replied=Option
         for el in message.forwarded:
             text = fallback_forward(el) + text
 
-    msg['Subject'] = message.email_subject
+    #msg['Subject'] = message.email_subject
     msg['From'] = credentials.login
     msg['To'] = message.thread_id
+    logging.debug(f'REPLIED: {replied}')
     if replied is not None:
         msg['In-Reply-To'] = replied.original_ids[0]
-
     if message.attachments is not None:
         for el in message.attachments:
             fdir = f'/tmp/{gen_random_string()}'
@@ -50,18 +50,22 @@ def send_message(message: Message, credentials: EmailCredentials, replied=Option
                                                         filename=el.name)
             text = fallback_attachment_caption(el) + text
             shutil.rmtree(fdir)
-
-    msg.attach(MIMEText(text))
+        msg.attach(MIMEText(text))
+    else:
+        msg.set_content(text)
+    msg['Message-ID'] = id = email.utils.make_msgid(idstring=gen_random_string(), domain="cerebra.ai")
+    # f"<5e7f5e01.1c69fb81.{gen_random_string(5)}.ca02@mx.google.com>"#
+    logging.debug(f"ID: {id}")
+    original_ids = [id]
     s = smtplib.SMTP(credentials.smpt, '587')
     s.starttls()
     s.login(credentials.login, credentials.password)
-    res = s.send_message(msg)
-    logging.debug(res)
+    s.send_message(msg)
     s.quit()
-    return []
+    return original_ids
 
 def add_channel(credentials: EmailCredentials):
-    return ""
+    return str(get_utc_timestamp() - 10**6)
 
 def remove_channel(credentials: EmailCredentials):
     pass

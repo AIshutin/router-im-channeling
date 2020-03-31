@@ -3,6 +3,7 @@ from datetime import datetime
 import base64
 import logging
 import random
+import mimetypes
 logging.basicConfig(level=logging.DEBUG)
 
 MONGO_PASSWORD = '8jxIlp0znlJm8qhL'
@@ -15,6 +16,15 @@ IMGS_FORMATS = {'jpg', 'jpeg', 'png', 'svg', 'bmp'}
 def get_b64_file(fpath):
     with open(fpath, "rb") as file:
         return base64.b64encode(file.read())
+
+def get_mime_type(fpath):
+    ctype, encoding = mimetypes.guess_type(fpath)
+    if ctype is None or encoding is not None:
+        # No guess could be made, or the file is encoded (compressed), so
+        # use a generic bag-of-bits type.
+        ctype = 'application/octet-stream'
+    maintype, subtype = ctype.split('/', 1)
+    return (maintype, subtype)
 
 def parse_path(path):
     parts = path[1:].split('/')
