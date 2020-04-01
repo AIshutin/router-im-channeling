@@ -25,11 +25,26 @@ def send_message(message: Message, credentials: TgCredentials, replied=Optional[
     bot = Bot(credentials.token)
     chat_id = int(message.thread_id)
     original_ids = []
-    if len(message.text) != 0:
+    text = message.text
+    reply_to_message = None
+    if replied is not None:
+        reply_to_message = int(replied.original_ids[0])
+    msg_to_forward = []
+    if message.forwarded is not None:
+        for el in message.forwarded:
+            if el.id is None:
+                text = fallback_forward(text) + text
+            else:
+                msg_to_forward += el.original_ids
+
+
+    if len(text) != 0:
         original_id =bot.send_message(chat_id=chat_id,
-                                        text=message.text)['message_id']
+                                        text=message.text,
+                                        reply_to_message_id=reply_to_message)['message_id']
         print(original_id)
         original_ids.append(str(original_id))
+        reply_to_message = None
         #tg.send_message(chat_id=int(message.thread_id),
         #                    text=message.text).wait()
     if message.attachments is not None and len(message.attachments) != 0:
@@ -52,13 +67,18 @@ def send_message(message: Message, credentials: TgCredentials, replied=Optional[
             if attachment.type == AttachmentType.image:
                 original_id = bot.send_photo(chat_id=chat_id,
                                             photo=open(fname, 'rb'),
+                                            reply_to_message_id=reply_to_message,
                                             caption=caption)['message_id']
-            elif attachment.mtype == AttachmentType.file:
+            elif attachment.type == AttachmentType.file:
                 original_id = bot.send_document(chat_id=chat_id,
                                                 document=open(fname, 'rb'),
-                                                caption=caption)['message_id']
+                                                caption=caption,
+                                                reply_to_message_id=reply_to_message)['message_id']
             shutil.rmtree(fdir)
+            reply_to_message = None
             original_ids.append(original_id)
+    for el in msg_to_forward:
+        original_ids.append(bot.forward_message(chat_id, chat_id, int(el))['message_id'])
     logging.info('SENT')
     logging.debug(original_ids)
     return original_ids

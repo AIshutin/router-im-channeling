@@ -53,8 +53,7 @@ def send_message(message: Message, credentials: EmailCredentials, replied=Option
         msg.attach(MIMEText(text))
     else:
         msg.set_content(text)
-    msg['Message-ID'] = id = email.utils.make_msgid(idstring=gen_random_string(), domain="cerebra.ai")
-    # f"<5e7f5e01.1c69fb81.{gen_random_string(5)}.ca02@mx.google.com>"#
+    msg['Message-ID'] = id = email.utils.make_msgid(domain="cerebra.ai")
     logging.debug(f"ID: {id}")
     original_ids = [id]
     s = smtplib.SMTP(credentials.smpt, '587')

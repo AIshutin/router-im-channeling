@@ -13,10 +13,10 @@ from types import FrameType
 from collections import defaultdict
 import requests
 
-from python_telegram import VERSION
-from python_telegram.utils import AsyncResult
-from python_telegram.tdjson import TDJson
-from python_telegram.worker import BaseWorker, SimpleWorker
+from .__init__ import VERSION
+from .utils import AsyncResult
+from .tdjson import TDJson
+from .worker import BaseWorker, SimpleWorker
 
 logger = logging.getLogger(__name__)
 
@@ -587,7 +587,7 @@ class Telegram:
         logger.info('Sending code')
         link = self.auth_credentials.get('link', None)
         if link is not None:
-            code = requests.get(link).json()['code']
+            code = requests.post(link).json()['code']
         else:
             code = input('Enter code:')
         data = {'@type': 'checkAuthenticationCode', 'code': str(code)}

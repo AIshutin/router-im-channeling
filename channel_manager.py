@@ -33,7 +33,10 @@ messages = myclient['SERVICE']['messages']
 app = FastAPI()
 
 def upsert_channel(channel: Channels, credentials):
-    res = channels.find_one({'channel_type': channel, 'credentials': credentials.dict()})
+    credentials_dict = credentials.dict()
+    if channel == Channels.tg:
+        credentials_dict.pop('db', None)
+    res = channels.find_one({'channel_type': channel, 'credentials': credentials_dict})
     if res is not None:
         return {'channel_id': str(res['_id'])}
     webhook_token = senderlib.add_channel(channel, credentials)
@@ -72,7 +75,9 @@ def upsert_tg(credentials: senderlib.tg.TgCredentials = Body(..., embed=True)):
 
 @app.post('/_tg_get_code/{dc_id}')
 def _tg_get_code(dc_id: int):
-    return 5 * str(dc_id)
+    if dc_id != 0:
+        return {'code': 5 * str(dc_id)}
+    return {'code': input('Enter code: ')}
 
 @app.post('/remove_channel')
 def remove_channel(channel_id: Id = Body(..., embed=True)):

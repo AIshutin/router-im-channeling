@@ -1,4 +1,4 @@
-from python_telegram.client import Telegram
+from .python_telegram.client import Telegram
 from typing import Optional
 from .common import Message, Channels, ChannelCredentials, gen_random_string, \
                     BASE_URL, SECRET_INTERNAL_KEY, MessageType, get_mime_type, \
@@ -13,6 +13,7 @@ import base64
 import pydantic
 import logging
 import shutil
+import time
 
 CHANNEL = 'tg'
 API_ID = os.getenv('API_ID', "1087174")
@@ -32,23 +33,31 @@ def send_message(message: Message, credentials: TgCredentials, replied=Optional[
 
 def add_channel(credentials: TgCredentials):
     fdir = f'/tmp/{gen_random_string(30)}'
+    os.mkdir(fdir)
+    logging.info(f"tg_dir: {fdir}")
     tg = Telegram(
-        api_id=API_HASH,
+        api_id=API_ID,
         api_hash=API_HASH,
         phone=credentials.phone,  # you can pass 'bot_token' instead
         database_encryption_key=API_HASH,
-        auth_credentials=credentials
+        auth_credentials=credentials.dict(),
+        files_directory=fdir,
+        use_test_dc=False,
     )
+    logging.debug(f"auth_credentials: {credentials}")
     tg.login()
     # if this is the first run, library needs to preload all chats
     # otherwise the message will not be sent
     result = tg.get_chats()
     result.wait()
+    time.sleep(5)
+    print(os.listdir('/tmp'))
     del tg
     fpath = f'/tmp/{gen_random_string()}'
     shutil.make_archive(fdir, 'zip', fpath)
     content = get_b64_file(fpath)
     shutil.rmtree(fdir)
+    os.remove(fpath)
     credentials.db = content
     return ""
 

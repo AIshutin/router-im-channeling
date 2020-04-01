@@ -3,6 +3,7 @@ from datetime import datetime
 import base64
 import logging
 import random
+import os
 import mimetypes
 from senderlib.common import save_b64_to_file
 logging.basicConfig(level=logging.DEBUG)

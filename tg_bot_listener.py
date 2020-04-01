@@ -4,6 +4,7 @@ import os
 import logging
 from datetime import datetime
 from common import *
+import copy
 
 CHANNEL = 'tg_bot'
 logger = logging.Logger('logger')
@@ -40,6 +41,7 @@ def run(request):
                 'server_timestamp': timestamp,
                 'original_ids': [str(message['message_id'])]
              }
+
         logger.debug(msg)
         caption = message.get('caption', '')
 
@@ -83,6 +85,22 @@ def run(request):
                 attachments = []
             attachments.append({'type': mtype, 'content': content, 'caption': caption, 'name': name})
         msg['attachments'] = attachments
+
+        if 'reply_to_message' in message:
+            id = str(message['reply_to_message']['message_id'])
+            logging.debug(f'original reply id: {id}')
+            our_id = messages.find_one({'channel': CHANNEL, 'original_ids': id})
+            if our_id is not None:
+                msg['reply_to'] = str(our_id['_id'])
+
+        if 'forward_from' in message:
+            forwarded = copy.deepcopy(msg)
+            forwarded.pop('thread_id')
+            forwarded.pop('channel_id')
+            forwarded.pop('reply_to', None)
+            msg['text'] = '.'
+            msg.pop('attachments', None)
+            msg['forwarded'] = [forwarded]
         add_new_message(msg)
     return 'Ok'
 
