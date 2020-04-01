@@ -4,6 +4,7 @@ import base64
 import logging
 import random
 import mimetypes
+from senderlib.common import save_b64_to_file
 logging.basicConfig(level=logging.DEBUG)
 
 MONGO_PASSWORD = '8jxIlp0znlJm8qhL'
@@ -51,3 +52,45 @@ def gen_random_string(length=30):
 
 def get_server_timestamp():
     return int(datetime.timestamp(datetime.utcnow()) * 1000)
+
+POLLING_TIME = int(os.getenv('POLLING_TIME', 60))
+TIME_GAP = POLLING_TIME * 2
+TIME_FIELD = 'webhook_token'
+
+class ServerStyleProcesser:
+    def __init__(self, channel, listener_class):
+        self.channel = channel
+        self.listener_class = listener_class
+
+    def check_if_alive_and_update(self, cid):
+        if channels.find_one({'_id': cid}) is None:
+            logging.debug(f'channel {cid} was deleted')
+            return False
+        current_time = str(int(get_server_timestamp() + TIME_GAP)//1000)
+        res = channels.update_one({'_id': cid}, {'$max': {TIME_FIELD: current_time}})
+        if res.modified_count == 0:
+            logging.debug(f"probably, we are not responsible for processing channel {cid}")
+            res2 = channels.find_one({'_id': cid})
+            logging.debug(f"upd_value: {current_time}; original_value: {res2[TIME_FIELD]}")
+            return False
+        return True
+
+    def remove_channel(self, channel):
+        self.channels2listeners.pop(channel['_id'], None)
+
+    def add_new_channel(self, channel):
+        self.channels2listeners[str(channel['_id'])] = self.listener_class(channel)
+
+    def search_for_avaible_channels(self):
+        current_time = str(int(get_server_timestamp()//1000))
+        query = {TIME_FIELD: {'$lt': current_time},
+                'channel_type': self.channel}
+        for channel in channels.find(query):
+            if len(self.channels2listeners) >= MAX_CHANNELS_PER_INSTANCE:
+                break
+            deadline = str(TIME_GAP + int(time.time()))
+            self.add_new_channel(channel)
+
+    def listen_to_new_channels(self, period=3):
+        while time.sleep(period) is None:
+            self.search_for_avaible_channels()

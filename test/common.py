@@ -10,6 +10,8 @@ import time
 
 logging.basicConfig(level=logging.DEBUG)
 API_URL = os.getenv('API_URL', "http://localhost:2000")
+if API_URL[-1] == '/':
+    API_URL = API_URL[:-1]
 
 text_message = {'mtype': 'message',
                 'text': 'hello_world!',

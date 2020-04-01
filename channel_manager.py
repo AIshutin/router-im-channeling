@@ -64,6 +64,16 @@ def upsert_fb(credentials: VkCredentials = Body(..., embed=True)):
 def upsert_fb(credentials: EmailCredentials = Body(..., embed=True)):
     return upsert_channel(Channels.email, credentials)
 
+@app.post('/upsert_channel/tg')
+def upsert_tg(credentials: senderlib.tg.TgCredentials = Body(..., embed=True)):
+    result = upsert_channel(Channels.tg, credentials)
+    assert(credentials.db is not None)
+    return result
+
+@app.post('/_tg_get_code/{dc_id}')
+def _tg_get_code(dc_id: int):
+    return 5 * str(dc_id)
+
 @app.post('/remove_channel')
 def remove_channel(channel_id: Id = Body(..., embed=True)):
     credentials = channels.find_one({'_id': channel_id})
