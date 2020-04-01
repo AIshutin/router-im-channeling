@@ -19,8 +19,9 @@ def run(request):
         return 'Bad token'
     channel_id = result['_id']
     print(req)
-    if 'message' in req:
-        message = req['message']
+    if 'message' or 'edited_message' in req:
+        message = req.get('message', req.get('edited_message'))
+        EDITED = 'edited_message' in req
         thread_id = str(message['chat']['id'])
         user = message.get('from', {})
         author = user.get('username', 'TelegramUser')
@@ -101,6 +102,22 @@ def run(request):
             msg['text'] = '.'
             msg.pop('attachments', None)
             msg['forwarded'] = [forwarded]
+
+        if EDITED:
+            original_id = str(message['message_id'])
+            msg['mtype'] = 'edit'
+            unedited = messages.find_one({'channel': CHANNEL,
+                                        'original_ids': original_id,
+                                        'mtype': 'message'})
+            if unedited is None:
+                logging.warning(f"Original message was not found for {message['message_id']}")
+                return
+            msg['unedited'] = str(unedited['_id'])
+            res = messages.count({'channel': CHANNEL,
+                                'original_ids': original_id})
+            logging.debug(f"count versions: {res}")
+            msg['mversion'] = res
+
         add_new_message(msg)
     return 'Ok'
 
