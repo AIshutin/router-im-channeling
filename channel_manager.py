@@ -70,7 +70,6 @@ def upsert_fb(credentials: EmailCredentials = Body(..., embed=True)):
 @app.post('/upsert_channel/tg')
 def upsert_tg(credentials: senderlib.tg.TgCredentials = Body(..., embed=True)):
     result = upsert_channel(Channels.tg, credentials)
-    assert(credentials.db is not None)
     return result
 
 @app.post('/_tg_get_code/{dc_id}')

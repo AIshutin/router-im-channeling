@@ -6,6 +6,9 @@ from common import API_URL, upsert_channel, remove_channel, TG_DEFAULT_THREAD_ID
 
 TG_DC_ID = 1
 
+tg_credentials = {'self_id': 0,
+                  'phone': f'+99966{2}{str(random.randint(1,9))*4}',
+                  'link': 'http://localhost:2000/_tg_get_code/2'}
 tg_credentials = json.load(open('tg_credentials.json'))
 # https://core.telegram.org/api/auth
 CHANNEL = 'tg'

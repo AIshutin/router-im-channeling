@@ -2,7 +2,7 @@ from .python_telegram.client import Telegram
 from typing import Optional
 from .common import Message, Channels, ChannelCredentials, gen_random_string, \
                     BASE_URL, SECRET_INTERNAL_KEY, MessageType, get_mime_type, \
-                    AttachmentType
+                    AttachmentType, get_utc_timestamp
 import threading
 import requests
 import os
@@ -32,7 +32,7 @@ def send_message(message: Message, credentials: TgCredentials, replied=Optional[
     return []
 
 def add_channel(credentials: TgCredentials):
-    fdir = f'/tmp/{gen_random_string(30)}'
+    '''fdir = f'../{gen_random_string(30)}'
     os.mkdir(fdir)
     logging.info(f"tg_dir: {fdir}")
     tg = Telegram(
@@ -45,21 +45,25 @@ def add_channel(credentials: TgCredentials):
         use_test_dc=False,
     )
     logging.debug(f"auth_credentials: {credentials}")
-    tg.login()
+    res = tg.login()
+    print(res, type(res))
+
     # if this is the first run, library needs to preload all chats
     # otherwise the message will not be sent
-    result = tg.get_chats()
-    result.wait()
+    #result = tg.get_chats()
+    #result.wait()
     time.sleep(5)
     print(os.listdir('/tmp'))
     del tg
+    print('3333')
     fpath = f'/tmp/{gen_random_string()}'
+    print('1qqqq')
     shutil.make_archive(fdir, 'zip', fpath)
     content = get_b64_file(fpath)
     shutil.rmtree(fdir)
     os.remove(fpath)
-    credentials.db = content
-    return ""
+    credentials.db = content'''
+    return str(get_utc_timestamp() - 10**6)
 
 def remove_channel(credentials: TgCredentials):
     return

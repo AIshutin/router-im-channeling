@@ -6,6 +6,7 @@ import random
 import os
 import mimetypes
 from senderlib.common import save_b64_to_file
+import time
 logging.basicConfig(level=logging.DEBUG)
 
 MONGO_PASSWORD = '8jxIlp0znlJm8qhL'
@@ -57,27 +58,30 @@ def get_server_timestamp():
 POLLING_TIME = int(os.getenv('POLLING_TIME', 60))
 TIME_GAP = POLLING_TIME * 2
 TIME_FIELD = 'webhook_token'
+MAX_CHANNELS_PER_INSTANCE = int(os.getenv('MAX_CHANNELS_PER_INSTANCE', 10))
 
 class ServerStyleProcesser:
     def __init__(self, channel, listener_class):
         self.channel = channel
+        self.channels2listeners = dict()
         self.listener_class = listener_class
 
     def check_if_alive_and_update(self, cid):
         if channels.find_one({'_id': cid}) is None:
             logging.debug(f'channel {cid} was deleted')
             return False
-        current_time = str(int(get_server_timestamp() + TIME_GAP)//1000)
+        current_time = str(int(get_server_timestamp()//1000 + TIME_GAP))
         res = channels.update_one({'_id': cid}, {'$max': {TIME_FIELD: current_time}})
         if res.modified_count == 0:
             logging.debug(f"probably, we are not responsible for processing channel {cid}")
             res2 = channels.find_one({'_id': cid})
             logging.debug(f"upd_value: {current_time}; original_value: {res2[TIME_FIELD]}")
             return False
+        print(f'checked {cid} - ok')
         return True
 
     def remove_channel(self, channel):
-        self.channels2listeners.pop(channel['_id'], None)
+        self.channels2listeners.pop(str(channel['_id']), None)
 
     def add_new_channel(self, channel):
         self.channels2listeners[str(channel['_id'])] = self.listener_class(channel)
@@ -86,6 +90,7 @@ class ServerStyleProcesser:
         current_time = str(int(get_server_timestamp()//1000))
         query = {TIME_FIELD: {'$lt': current_time},
                 'channel_type': self.channel}
+        print('new search')
         for channel in channels.find(query):
             if len(self.channels2listeners) >= MAX_CHANNELS_PER_INSTANCE:
                 break
