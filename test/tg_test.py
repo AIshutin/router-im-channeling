@@ -2,7 +2,7 @@ import requests
 import copy
 import random
 import json
-from common import API_URL, upsert_channel, remove_channel, TG_DEFAULT_THREAD_ID
+from common import API_URL, upsert_channel, remove_channel, add_attr_dict
 
 TG_DC_ID = 1
 
@@ -15,3 +15,8 @@ CHANNEL = 'tg'
 
 test_upsert_channel_tg = lambda: upsert_channel(CHANNEL, tg_credentials)
 test_remove_channel_tg = lambda: remove_channel(CHANNEL, tg_credentials)
+
+class TestTgClass:
+    pass
+
+TestTgClass = add_attr_dict(TestTgClass, CHANNEL, tg_credentials, "me")

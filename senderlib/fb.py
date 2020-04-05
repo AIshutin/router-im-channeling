@@ -18,7 +18,8 @@ class FbCredentials(pydantic.BaseModel):
     token: str
     self_id: str
 
-def send_message(message: Message, credentials: FbCredentials, replied=Optional[Message]):
+def send_message(message: Message, credentials: FbCredentials, \
+            replied: Optional[Message]=None, specific: Optional[dict]=None):
     token = credentials.token
     link = f'https://graph.facebook.com/v5.0/me/messages?access_token={token}'
     text = message.text

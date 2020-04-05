@@ -10,6 +10,7 @@ from bson.objectid import ObjectId
 import logging
 from datetime import datetime
 import os
+import time
 logging.debug('This is debug message')
 
 class CredentialsNotFound(Exception):
@@ -34,8 +35,6 @@ app = FastAPI()
 
 def upsert_channel(channel: Channels, credentials):
     credentials_dict = credentials.dict()
-    if channel == Channels.tg:
-        credentials_dict.pop('db', None)
     res = channels.find_one({'channel_type': channel, 'credentials': credentials_dict})
     if res is not None:
         return {'channel_id': str(res['_id'])}
@@ -49,6 +48,35 @@ def upsert_channel(channel: Channels, credentials):
     logging.debug(_id)
     for el in channels.find({}):
         logging.debug(el)
+    return {'channel_id': str(_id)}
+
+def upsert_channel_long_action(channel: Channels, credentials, delay=100):
+    search_dict = credentials.dict()
+    if channel == Channels.tg:
+        search_dict.pop('db', None)
+        search_dict.pop('link', None)
+    for key in list(search_dict.keys()):
+        search_dict[f'credentials.{key}'] = search_dict.pop(key)
+    search_dict['channel_type'] = channel
+    print(search_dict)
+    res = channels.find_one(search_dict)
+    if res is not None:
+        return {'channel_id': str(res['_id'])}
+    str_timestamp = senderlib.add_channel(channel, credentials)
+    logging.debug(str_timestamp)
+
+    common_credentials = senderlib.Credentials(channel_type=channel,
+                                               credentials=credentials,
+                                               timestamp=str_timestamp,
+                                               webhook_token="")
+    logging.info(common_credentials.dict())
+    _id = channels.insert_one(common_credentials.dict()).inserted_id
+    time.sleep(delay)
+    res = channels.find_one({'_id': _id})
+    if res is None:
+        raise HTTPException(status_code=500, detail='channel was removed before confirmation')
+    if res['webhook_token'] == str_timestamp:
+        raise HTTPException(status_code=500, detail='channel was not accepted. Check credentials.')
     return {'channel_id': str(_id)}
 
 @app.post('/upsert_channel/tg_bot/')
@@ -65,11 +93,11 @@ def upsert_fb(credentials: VkCredentials = Body(..., embed=True)):
 
 @app.post('/upsert_channel/email/')
 def upsert_fb(credentials: EmailCredentials = Body(..., embed=True)):
-    return upsert_channel(Channels.email, credentials)
+    return upsert_channel_long_action(Channels.email, credentials, 20)
 
 @app.post('/upsert_channel/tg')
 def upsert_tg(credentials: senderlib.tg.TgCredentials = Body(..., embed=True)):
-    result = upsert_channel(Channels.tg, credentials)
+    result = upsert_channel_long_action(Channels.tg, credentials, 60)
     return result
 
 @app.post('/_tg_get_code/{dc_id}')
@@ -110,13 +138,13 @@ def send_message(message: Message = Body(..., embed=True)):
 
     channel_id = message.channel_id
     logging.debug(type(channel_id))
-    credentials = channels.find_one({'_id': channel_id})
-    if credentials is None:
+    channel_obj = channels.find_one({'_id': channel_id})
+    if channel_obj is None:
         for el in channels.find({}):
             logging.debug(el)
         raise CredentialsNotFound(channel_id)
-    channel = credentials['channel_type']
-    credentials = credentials['credentials']
+    channel = channel_obj['channel_type']
+    credentials = channel_obj['credentials']
 
     message.channel = channel
     message.server_timestamp = message.timestamp = int(datetime.timestamp(datetime.utcnow()) * 1000)
@@ -131,7 +159,14 @@ def send_message(message: Message = Body(..., embed=True)):
         logging.debug(replied)
         replied = Message(**replied)
         replied.channel = channel
-    resp = senderlib.send_message(channel, message, credentials, replied=replied)
+
+    platform_specific = None
+    if message.channel == Channels.tg:
+        platform_specific = {'url': channel_obj['webhook_token']}
+
+    resp = senderlib.send_message(channel, message, credentials, replied=replied, specific=platform_specific)
     message.original_ids = resp
-    return {'id': str(add_new_message(message.dict())), 'original_ids': message.original_ids,
+    id = str(add_new_message(message.dict()))
+
+    return {'id': id, 'original_ids': message.original_ids,
             'server_timestamp': message.server_timestamp, 'timestamp': message.timestamp}

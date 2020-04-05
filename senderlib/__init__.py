@@ -28,9 +28,11 @@ from .mail import EmailCredentials as emailcredentials
 from pydantic import BaseModel
 from typing import Optional, List, Union
 
-def send_message(channel: Channels, message: Message, credentials, replied: Optional[Message]=None) -> str:
+def send_message(channel: Channels, message: Message, credentials, \
+            replied: Optional[Message]=None, specific: Optional[dict]=None) -> str:
     credentials = globals()[f'{channel}credentials'](**credentials)
-    return globals()[f'{channel}_send_message'](message, credentials, replied=replied)
+    return globals()[f'{channel}_send_message'](message, credentials, \
+                                            replied=replied, specific=specific)
 
 def add_channel(channel: Channels, credentials) -> str:
     return globals()[f'{channel}_add_channel'](credentials)
@@ -43,5 +45,6 @@ def remove_channel(channel, credentials):
 class Credentials(BaseModel):
     channel_type: Channels
     webhook_token: str
+    timestamp: str
     credentials: Union[fbcredentials, vkcredentials, tg_botcredentials, \
                         emailcredentials, tgcredentials]

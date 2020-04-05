@@ -25,7 +25,8 @@ class EmailCredentials(pydantic.BaseModel):
     login: str
     imap: str
 
-def send_message(message: Message, credentials: EmailCredentials, replied=Optional[Message]):
+def send_message(message: Message, credentials: EmailCredentials, \
+        replied=Optional[Message], specific: Optional[dict]=None):
     msg = EmailMessage()
     text = message.text
     if message.forwarded is not None:

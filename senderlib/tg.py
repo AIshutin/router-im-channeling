@@ -28,41 +28,18 @@ class TgCredentials(pydantic.BaseModel):
     self_id: str
     password: Optional[str]
 
-def send_message(message: Message, credentials: TgCredentials, replied=Optional[Message]):
-    return []
+def send_message(message: Message, credentials: TgCredentials, \
+        replied=Optional[Message], specific: dict=None):
+    logging.debug(f"server url {specific['url']}")
+    msg_dict = message.dict()
+    msg_dict['channel_id'] = str(msg_dict['channel_id'])
+    resp = requests.post(specific['url'], json={'message': msg_dict})
+    logging.debug(f"server response {resp.text}")
+    resp.raise_for_status()
+
+    return resp.json()['original_ids']
 
 def add_channel(credentials: TgCredentials):
-    '''fdir = f'../{gen_random_string(30)}'
-    os.mkdir(fdir)
-    logging.info(f"tg_dir: {fdir}")
-    tg = Telegram(
-        api_id=API_ID,
-        api_hash=API_HASH,
-        phone=credentials.phone,  # you can pass 'bot_token' instead
-        database_encryption_key=API_HASH,
-        auth_credentials=credentials.dict(),
-        files_directory=fdir,
-        use_test_dc=False,
-    )
-    logging.debug(f"auth_credentials: {credentials}")
-    res = tg.login()
-    print(res, type(res))
-
-    # if this is the first run, library needs to preload all chats
-    # otherwise the message will not be sent
-    #result = tg.get_chats()
-    #result.wait()
-    time.sleep(5)
-    print(os.listdir('/tmp'))
-    del tg
-    print('3333')
-    fpath = f'/tmp/{gen_random_string()}'
-    print('1qqqq')
-    shutil.make_archive(fdir, 'zip', fpath)
-    content = get_b64_file(fpath)
-    shutil.rmtree(fdir)
-    os.remove(fpath)
-    credentials.db = content'''
     return str(get_utc_timestamp() - 10**6)
 
 def remove_channel(credentials: TgCredentials):

@@ -21,7 +21,8 @@ FILE_REMOVE_DELAY = 60 * 3
 class TgCredentials(pydantic.BaseModel):
     token: str
 
-def send_message(message: Message, credentials: TgCredentials, replied=Optional[Message]):
+def send_message(message: Message, credentials: TgCredentials, \
+        replied=Optional[Message], specific: Optional[dict]=None):
     bot = Bot(credentials.token)
     chat_id = int(message.thread_id)
     original_ids = []

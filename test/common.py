@@ -90,7 +90,7 @@ def clean_db():
 
 def upsert_channel(channel, credentials):
     url = f"{API_URL}/upsert_channel/{channel}"
-    resp = requests.post(url, json={'credentials': credentials})
+    resp = requests.post(url, json={'credentials': credentials}, timeout=60*3)
     assert(resp.status_code == 200)
     data = resp.json()
     assert('channel_id' in data and len(data['channel_id']) > 0)
@@ -150,7 +150,7 @@ class SenderClass:
         if REPLY_TO:
             self.message['reply_to'] = res['id']
             send_message(self.message)
-        remove_channel(self.channel, self.credentials, channel_id)
+        # remove_channel(self.channel, self.credentials, channel_id)
 
 def _dirty_magic(self):
     """
