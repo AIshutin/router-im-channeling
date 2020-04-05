@@ -119,6 +119,8 @@ def run(request):
                             attachments.append(file)
                 if attachments is not None and len(attachments) != 0:
                     msg['attachments'] = attachments
+
+                Message(**msg)
                 add_new_message(msg)
 
         return 'Hello, World'

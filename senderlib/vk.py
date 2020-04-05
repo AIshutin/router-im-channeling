@@ -27,7 +27,8 @@ class VkCredentials(pydantic.BaseModel):
     token: str
     self_id: str
 
-def send_message(message: Message, credentials: VkCredentials, replied: Optional[Message]=None):
+def send_message(message: Message, credentials: VkCredentials, \
+        replied: Optional[Message]=None, specific: Optional[dict]=None):
     reply_to = replied
     vk = vk_api.VkApi(token=credentials.token).get_api()
     reply = None

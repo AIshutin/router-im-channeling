@@ -3,7 +3,10 @@ from datetime import datetime
 import base64
 import logging
 import random
+import os
 import mimetypes
+from senderlib.common import save_b64_to_file, Message
+import time
 logging.basicConfig(level=logging.DEBUG)
 
 MONGO_PASSWORD = '8jxIlp0znlJm8qhL'
@@ -51,3 +54,53 @@ def gen_random_string(length=30):
 
 def get_server_timestamp():
     return int(datetime.timestamp(datetime.utcnow()) * 1000)
+
+POLLING_TIME = int(os.getenv('POLLING_TIME', 60))
+TIME_GAP = POLLING_TIME * 2
+TIME_FIELD = 'timestamp'
+URL_FIELD = 'webhook_token'
+MAX_CHANNELS_PER_INSTANCE = int(os.getenv('MAX_CHANNELS_PER_INSTANCE', 10))
+
+class ServerStyleProcesser:
+    def __init__(self, channel, listener_class):
+        self.channel = channel
+        self.channels2listeners = dict()
+        self.listener_class = listener_class
+
+    def check_if_alive_and_update(self, cid, other):
+        if channels.find_one({'_id': cid}) is None:
+            logging.debug(f"channel {cid} was deleted")
+            return False
+        current_time = str(int(get_server_timestamp()//1000 + TIME_GAP))
+        res = channels.update_one({'_id': cid, TIME_FIELD: other.def_time}, \
+                                    {'$max': {TIME_FIELD: current_time}})
+        if res.modified_count == 0:
+            logging.info(f"probably, we are not responsible for processing channel {cid}")
+            res2 = channels.find_one({'_id': cid})
+            logging.debug(f"upd_value: {current_time}; original_value: {res2[TIME_FIELD]}")
+            return False
+        channels.update_one({'_id': cid}, {'$set': {URL_FIELD: other.url}})
+        other.def_time = current_time
+        logging.debug(f"checked {cid} - ok")
+        return True
+
+    def remove_channel(self, channel_id):
+        self.channels2listeners.pop(str(channel_id), None)
+
+    def add_new_channel(self, channel, def_time):
+        logging.debug(f"add_channel {channel} {def_time}")
+        self.channels2listeners[str(channel['_id'])] = self.listener_class(channel, def_time)
+
+    def search_for_avaible_channels(self):
+        current_time = str(int(get_server_timestamp()//1000))
+        query = {TIME_FIELD: {'$lt': current_time},
+                'channel_type': self.channel}
+        logging.debug("new search")
+        for channel in channels.find(query):
+            if len(self.channels2listeners) >= MAX_CHANNELS_PER_INSTANCE:
+                break
+            self.add_new_channel(channel, channel[TIME_FIELD])
+
+    def listen_to_new_channels(self, period=3):
+        while time.sleep(period) is None:
+            self.search_for_avaible_channels()

@@ -11,17 +11,24 @@ import time
 import mailparser
 from bs4 import BeautifulSoup
 import logging
+import argparse
 
-LOG_LEVEL = logging.DEBUG
-logging.basicConfig(level=LOG_LEVEL)
+parser = argparse.ArgumentParser(description='Run email listener server')
+parser.add_argument('--log_level', default='info')
+args = parser.parse_args()
+
+# LOG_LEVEL = logging.DEBUG
+log_level = args.log_level.lower()
+log_levels = {
+    'debug': logging.DEBUG,
+    'info': logging.INFO,
+    'warning': logging.WARNING,
+    'critical': logging.CRITICAL
+}
+logging.basicConfig(level=log_levels[log_level])
 # logging.disable(level=LOG_LEVEL)
 
 CHANNEL = 'email'
-MAX_CHANNELS_PER_INSTANCE = int(os.getenv('MAX_CHANNELS_PER_INSTANCE', 10))
-channels2listeners = dict()
-POLLING_TIME = int(os.getenv('POLLING_TIME', 60))
-TIME_GAP = POLLING_TIME * 2
-TIME_FIELD = 'webhook_token'
 loop = asyncio.get_event_loop()
 
 def clean_text_from_citation(text):
@@ -113,80 +120,54 @@ def process_new_message(host, user, password, uid, channel_id):
         message['attachments'] = attachments
 
     logging.debug(f"message: {message}")
+    Message(**message)
     add_new_message(message)
 
-def check_if_alive_and_update(cid):
-    if channels.find_one({'_id': cid}) is None:
-        logging.debug(f'channel {cid} was deleted')
-        return False
-    current_time = str(int(get_server_timestamp() + TIME_GAP)//1000)
-    res = channels.update_one({'_id': cid}, {'$max': {TIME_FIELD: current_time}})
-    if res.modified_count == 0:
-        logging.debug(f"probably, we are not responsible for processing channel {cid}")
-        res2 = channels.find_one({'_id': cid})
-        logging.debug(f"upd_value: {current_time}; original_value: {res2[TIME_FIELD]}")
-        return False
-    return True
-
-@asyncio.coroutine
-def wait_for_new_message(channel):
-    credentials = channel['credentials']
-    host, user, password = credentials['imap'], credentials['login'], credentials['password']
-
-    imap_client = aioimaplib.IMAP4_SSL(host=host)
-    yield from imap_client.wait_hello_from_server()
-    yield from imap_client.login(user, password)
-    yield from imap_client.select()
-
-    while check_if_alive_and_update(channel['_id']):
-        logging.debug('idle started')
-        idle = yield from imap_client.idle_start(timeout=20)
-        uid = -1
-        while imap_client.has_pending_idle():
-            logging.info('waiting...')
-            msg = yield from imap_client.wait_server_push()
-            logging.debug(f"!!!! msg: {msg}")
-            flag = False
-            if msg == aioimaplib.STOP_WAIT_SERVER_PUSH:
-                res = imap_client.idle_done()
-                _tmp = yield from asyncio.wait_for(idle, 3)
-                if len(_tmp.lines) != 1:
-                    logging.critical('Message may be missed')
-                    logging.critical('Please, investigate logs to discover how to prevent this.')
-                    logging.critical(_tmp.lines)
-                flag = True
-                msg = _tmp.lines
-            for el in msg:
-                if 'EXISTS' in el:
-                    uid = el.split(' ')[0]
-                    asyncio.ensure_future(process_new_message(host, user, password, uid, channel['_id']))
-            if flag:
-                break
-    channels2listeners.pop(str(channel['_id']), None)
-    yield from imap_client.logout()
-
-    logging.info(f"email_listener_loop ended {channel}")
-
 class EmailListener:
-    def __init__(self, channel):
+    url = "captured"
+    def __init__(self, channel, def_time):
         logging.info(f"New channel: {channel}")
-        loop.run_until_complete(wait_for_new_message(channel))
+        self.def_time = def_time
+        loop.run_until_complete(self.wait_for_new_message(channel))
 
-def add_new_channel(channel):
-    channels2listeners[str(channel['_id'])] = EmailListener(channel)
+    @asyncio.coroutine
+    def wait_for_new_message(self, channel):
+        credentials = channel['credentials']
+        host, user, password = credentials['imap'], credentials['login'], credentials['password']
 
-def search_for_avaible_channels():
-    current_time = str(int(get_server_timestamp()//1000))
-    query = {TIME_FIELD: {'$lt': current_time},
-            'channel_type': CHANNEL}
-    for channel in channels.find(query):
-        if len(channels2listeners) >= MAX_CHANNELS_PER_INSTANCE:
-            break
-        deadline = str(TIME_GAP + int(time.time()))
-        add_new_channel(channel)
+        imap_client = aioimaplib.IMAP4_SSL(host=host)
+        yield from imap_client.wait_hello_from_server()
+        yield from imap_client.login(user, password)
+        yield from imap_client.select()
 
-def listen_to_new_channels(period=3):
-    while time.sleep(period) is None:
-        search_for_avaible_channels()
+        while processer.check_if_alive_and_update(channel['_id'], self):
+            logging.debug('idle started')
+            idle = yield from imap_client.idle_start(timeout=POLLING_TIME)
+            uid = -1
+            while imap_client.has_pending_idle():
+                logging.info('waiting...')
+                msg = yield from imap_client.wait_server_push()
+                logging.debug(f"!!!! msg: {msg}")
+                flag = False
+                if msg == aioimaplib.STOP_WAIT_SERVER_PUSH:
+                    res = imap_client.idle_done()
+                    _tmp = yield from asyncio.wait_for(idle, 3)
+                    if len(_tmp.lines) != 1:
+                        logging.critical('Message may be missed')
+                        logging.critical('Please, investigate logs to discover how to prevent this.')
+                        logging.critical(_tmp.lines)
+                    flag = True
+                    msg = _tmp.lines
+                for el in msg:
+                    if 'EXISTS' in el:
+                        uid = el.split(' ')[0]
+                        asyncio.ensure_future(process_new_message(host, user, password, uid, channel['_id']))
+                if flag:
+                    break
+        processer.remove_channel(channel['_id'])
+        yield from imap_client.logout()
 
-listen_to_new_channels()
+        logging.info(f"email_listener_loop ended {channel}")
+
+processer = ServerStyleProcesser(CHANNEL, EmailListener)
+processer.listen_to_new_channels()

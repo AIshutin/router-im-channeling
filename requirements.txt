@@ -2,7 +2,6 @@ pymongo
 dnspython
 fastapi
 pydantic
-#python-telegram
 python-telegram-bot
 requests
 uvicorn
@@ -14,3 +13,5 @@ pycurl
 aioimaplib
 mail-parser
 beautifulsoup4
+pyrogram==0.16.0
+tgcrypto

@@ -35,7 +35,8 @@ def process_vk_message(message, self_id: str, channel_id: str="", main_thread_id
         reply_to = -1
     if reply_to != -1:
             was = False
-            for el in messages.find({'original_ids': str(reply_to), 'thread_id': thread_id})\
+            for el in messages.find({'original_ids': str(reply_to), 'channel': CHANNEL, \
+                                    'thread_id': thread_id, 'channel_id': channel_id})\
                                                      .sort([('server_timestamp', 1)]):
                 reply_to = el['_id']
                 was = True
@@ -165,6 +166,7 @@ def run(request):
         group_id = str(json_data['group_id'])
         msgs = process_vk_message(message, group_id, str(result['_id']))
         assert(len(msgs) == 1)
+        Message(**msgs[0])
         add_new_message(msgs[0])
     elif json_data['type'] == 'message_edit':
         logging.debug(json_data)
@@ -178,7 +180,8 @@ def run(request):
         cnt = 1
         unedited = None
         logging.debug(f"conversation_message_id: {orid}")
-        original = messages.find_one({'unedited': orid})
+        original = messages.find_one({'channel': CHANNEL, 'thread_id': msgs[0]['thread_id'],
+                                    'channel_id': msgs[0]['channel_id'], 'unedited': orid})
         logging.debug(f"original message: {original}")
         if original is None:
             logging.warning(f'No original message found for {msgs[0]}')
@@ -192,5 +195,6 @@ def run(request):
             msgs[i]['mversion'] = cnt
             msgs[i]['mtype'] = 'edit'
         assert(len(msgs) == 1)
+        Message(**msgs[0])
         add_new_message(msgs[0])
     return 'ok'

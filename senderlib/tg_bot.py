@@ -1,4 +1,3 @@
-#from telegram.client import Telegram
 from telegram import Bot
 from typing import Optional
 from .common import Message, Channels, ChannelCredentials, gen_random_string, \
@@ -15,26 +14,38 @@ import pydantic
 import logging
 import shutil
 
-CHANNEL = Channels.tg
-API_ID = os.getenv('API_ID', "1087174")
-API_HASH = os.getenv('API_HASH', "3370ae6b2b06dad548626a0fdafc14dc")
-logging.info(f'{API_ID} used as API_ID for Telegram')
-logging.info(f'{API_HASH} used as API_HASH for Telegram')
+CHANNEL = Channels.tg_bot
 
 FILE_REMOVE_DELAY = 60 * 3
 
 class TgCredentials(pydantic.BaseModel):
     token: str
 
-def send_message(message: Message, credentials: TgCredentials, replied=Optional[Message]):
+def send_message(message: Message, credentials: TgCredentials, \
+        replied=Optional[Message], specific: Optional[dict]=None):
     bot = Bot(credentials.token)
     chat_id = int(message.thread_id)
     original_ids = []
-    if len(message.text) != 0:
+    text = message.text
+    reply_to_message = None
+    if replied is not None:
+        reply_to_message = int(replied.original_ids[0])
+    msg_to_forward = []
+    if message.forwarded is not None:
+        for el in message.forwarded:
+            if el.id is None:
+                text = fallback_forward(text) + text
+            else:
+                msg_to_forward += el.original_ids
+
+
+    if len(text) != 0:
         original_id =bot.send_message(chat_id=chat_id,
-                                        text=message.text)['message_id']
+                                        text=message.text,
+                                        reply_to_message_id=reply_to_message)['message_id']
         print(original_id)
         original_ids.append(str(original_id))
+        reply_to_message = None
         #tg.send_message(chat_id=int(message.thread_id),
         #                    text=message.text).wait()
     if message.attachments is not None and len(message.attachments) != 0:
@@ -57,13 +68,18 @@ def send_message(message: Message, credentials: TgCredentials, replied=Optional[
             if attachment.type == AttachmentType.image:
                 original_id = bot.send_photo(chat_id=chat_id,
                                             photo=open(fname, 'rb'),
+                                            reply_to_message_id=reply_to_message,
                                             caption=caption)['message_id']
-            elif attachment.mtype == AttachmentType.file:
+            elif attachment.type == AttachmentType.file:
                 original_id = bot.send_document(chat_id=chat_id,
                                                 document=open(fname, 'rb'),
-                                                caption=caption)['message_id']
+                                                caption=caption,
+                                                reply_to_message_id=reply_to_message)['message_id']
             shutil.rmtree(fdir)
+            reply_to_message = None
             original_ids.append(original_id)
+    for el in msg_to_forward:
+        original_ids.append(bot.forward_message(chat_id, chat_id, int(el))['message_id'])
     logging.info('SENT')
     logging.debug(original_ids)
     return original_ids
