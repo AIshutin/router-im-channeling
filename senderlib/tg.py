@@ -33,6 +33,11 @@ def send_message(message: Message, credentials: TgCredentials, \
     logging.debug(f"server url {specific['url']}")
     msg_dict = message.dict()
     msg_dict['channel_id'] = str(msg_dict['channel_id'])
+    if 'reply_to' in msg_dict and msg_dict['reply_to'] is not None:
+        msg_dict['reply_to'] = str(msg_dict['reply_to'])
+    if 'forwarded' in msg_dict and msg_dict['forwarded'] is not None:
+        for i in range(len(msg_dict['forwarded'])):
+            msg_dict['forwarded'][i]['id'] = str(msg_dict['forwarded'][i]['id'])
     resp = requests.post(specific['url'], json={'message': msg_dict})
     logging.debug(f"server response {resp.text}")
     resp.raise_for_status()

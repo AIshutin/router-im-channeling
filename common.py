@@ -5,7 +5,7 @@ import logging
 import random
 import os
 import mimetypes
-from senderlib.common import save_b64_to_file
+from senderlib.common import save_b64_to_file, Message
 import time
 logging.basicConfig(level=logging.DEBUG)
 
@@ -69,33 +69,33 @@ class ServerStyleProcesser:
 
     def check_if_alive_and_update(self, cid, other):
         if channels.find_one({'_id': cid}) is None:
-            logging.debug(f'channel {cid} was deleted')
+            logging.debug(f"channel {cid} was deleted")
             return False
         current_time = str(int(get_server_timestamp()//1000 + TIME_GAP))
         res = channels.update_one({'_id': cid, TIME_FIELD: other.def_time}, \
                                     {'$max': {TIME_FIELD: current_time}})
         if res.modified_count == 0:
-            print(f"probably, we are not responsible for processing channel {cid}")
+            logging.info(f"probably, we are not responsible for processing channel {cid}")
             res2 = channels.find_one({'_id': cid})
-            print(f"upd_value: {current_time}; original_value: {res2[TIME_FIELD]}")
+            logging.debug(f"upd_value: {current_time}; original_value: {res2[TIME_FIELD]}")
             return False
         channels.update_one({'_id': cid}, {'$set': {URL_FIELD: other.url}})
         other.def_time = current_time
-        print(f'checked {cid} - ok')
+        logging.debug(f"checked {cid} - ok")
         return True
 
     def remove_channel(self, channel_id):
         self.channels2listeners.pop(str(channel_id), None)
 
     def add_new_channel(self, channel, def_time):
-        print('add_channel', channel, def_time)
+        logging.debug(f"add_channel {channel} {def_time}")
         self.channels2listeners[str(channel['_id'])] = self.listener_class(channel, def_time)
 
     def search_for_avaible_channels(self):
         current_time = str(int(get_server_timestamp()//1000))
         query = {TIME_FIELD: {'$lt': current_time},
                 'channel_type': self.channel}
-        print('new search')
+        logging.debug("new search")
         for channel in channels.find(query):
             if len(self.channels2listeners) >= MAX_CHANNELS_PER_INSTANCE:
                 break

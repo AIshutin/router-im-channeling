@@ -1,6 +1,5 @@
 import pyrogram
 from common import *
-from zipfile import ZipFile
 import os
 import sys
 import io
@@ -15,6 +14,7 @@ from senderlib.common import fallback_reply_to, fallback_forward
 from fastapi import FastAPI, Query, Body, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional
+import copy
 
 logging.basicConfig(level=logging.DEBUG)
 pyrogram.Client.authorize = pyrohacks.custom_authorize
@@ -35,6 +35,21 @@ FINAL_URL = BASE_URL + TOKEN
 
 class TgListener:
     url = FINAL_URL
+
+    def extract_userdate(self, user):
+        if user is None:
+            return "", ""
+        author = getattr(user, 'username', f'TgUser{user.id}')
+        author_name = ''
+        if getattr(user, 'first_name', None) != '':
+            author_name = user.first_name
+        if getattr(user, 'last_name', None) != '':
+            if author_name != '':
+                author_name = author_name + ' '
+            author_name = author_name + user.last_name
+        if author_name == '':
+            author_name = author
+        return (author, author_name)
 
     def send_message(self, message):
         original_ids = []
@@ -66,7 +81,7 @@ class TgListener:
                 fdir = f'/tmp/{gen_random_string()}/'
                 os.mkdir(fdir)
                 fpath = fdir + attachment['name']
-                save_b64_to_file(fpath)
+                save_b64_to_file(attachment['content'], fpath)
                 if attachment['type'] == 'photo':
                     id = self.app.send_photo(chat_id=chat_id,
                                             photo=fpath,
@@ -93,11 +108,12 @@ class TgListener:
                     forwarded['original_ids'] != []:
                     self.app.forward_messages(chat_id=chat_id,
                                                 from_chat_id=chat_id,
-                                                message_ids=forwarded['original_ids'])
+                                                message_ids=map(int, forwarded['original_ids']))
                 else:
-                    text = fallback_forward(forwarded)
-                    self.app.send_document(chat_id=chat_id,
-                                            text=text)
+                    for el in forwarded:
+                        text = fallback_forward(el)
+                        self.app.send_document(chat_id=chat_id,
+                                                text=text)
         return original_ids
 
     def full_init(self):
@@ -156,26 +172,14 @@ class TgListener:
                 processer.remove_channel(self.channel['_id'])
                 break
 
-
     def handle_file(self, update):
         pass
 
     def handle_message(self, client, update):
-        print('!!!!!!!!!!!!!', update)
         chat_id = update.chat.id
-        from_ = update.from_user
-        try:
-            author = from_.username
-        except AttributeError:
-            author = f'TgUser{update.id}'
-        if from_.first_name is not None:
-            author_name = from_.first_name
-            if from_.last_name is not None:
-                author_name = author_name + ' ' + from_.last_name
-        else:
-            author_name = author
+        author, author_name = self.extract_userdate(update.from_user)
 
-        print(f"update: {update}")
+        logging.debug(f"update: {update}")
         if update.outgoing:
             logging.debug('our message')
             return
@@ -190,11 +194,79 @@ class TgListener:
             'author_type': 'user',
             'thread_id': str(chat_id),
             'channel': CHANNEL,
-            'timestamp': update.date*1000,
+            'channel_id': str(self.channel['_id']),
+            'timestamp': int(update.date*1000),
             'server_timestamp': get_server_timestamp(),
         }
 
-        print(message)
+        if getattr(update, 'media', False):
+            try:
+                path = update.download()
+                type_ = 'image' if hasattr(update, 'photo') and update.photo is not None \
+                                else 'file'
+                name = os.path.basename(path)
+                attachments = [{'type': type_, 'content': get_b64_file(path), \
+                                'name': name, 'caption': update.caption}]
+                message['attachments'] = attachments
+            except ValueError:
+                logging.debug('no attachments despite message.media is True')
+
+        if getattr(update, 'reply_to_message', None) is not None:
+            reply_to = None
+            original_id = str(update.reply_to_message.message_id)
+            res = messages.find_one({'channel': CHANNEL, 'thread_id': str(chat_id),
+                                    'original_ids': original_id})
+            if res is not None:
+                reply_to = str(res['_id'])
+                message['reply_to'] = str(res['_id'])
+
+        if getattr(update, 'forward_date', None) is not None:
+            forwarded = message
+            message = {
+                'mtype': 'message',
+                'text': message_text,
+                'author': str(author),
+                'author_name': author_name,
+                'author_type': 'user',
+                'thread_id': str(chat_id),
+                'channel': CHANNEL,
+                'channel_id': str(self.channel['_id']),
+                'timestamp': int(update.date*1000),
+                'server_timestamp': get_server_timestamp(),
+            }
+
+            if getattr(update, 'forward_sender_name', None) is not None:
+                forwarded['author'] = forwarded['author_name'] = update.forward_sender_name
+            else:
+                forwarded['author'], forwarded['author_name'] = self.extract_userdate(update.forward_from)
+
+            if getattr(update, 'forward_from_message_id', None) is not None:
+                original_id = update.forward_from_message_id
+                res = messages.find_one({'channel': CHANNEL, 'thread_id': str(chat_id), \
+                                        'original_ids': original_id})
+                if res is not None:
+                    forwarded['original_ids'] = [str(res['_id'])]
+            forwarded.pop('reply_to', None)
+            forwarded.pop('thread_id', None)
+            forwarded.pop('channel_id', None)
+            message['forwarded'] = [forwarded]
+
+        message['original_ids'] = [str(update.message_id)]
+
+        if getattr(update, 'edit_date', None) is not None:
+            "mversion, unedited, mtype"
+            query = {'channel': CHANNEL, 'thread_id': str(chat_id), \
+                    'original_ids': str(update.message_id), 'mtype': 'message'}
+            original = messages.find_one(query)
+            if original is None:
+                logging.warning(f'Unedited message for {update.message_id} in {str(chat_id)} not found')
+            else:
+                message['unedited'] = str(original['_id'])
+                message['mtype'] = 'edit'
+                query.pop('mtype')
+                message['mversion'] = messages.count(query)
+        logging.debug(message)
+        Message(**message)
         add_new_message(message)
 
 processer = ServerStyleProcesser(CHANNEL, TgListener)
