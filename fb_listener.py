@@ -51,7 +51,6 @@ def run(request):
 
         for event in entry:
             for messaging in event['messaging']:
-                #print(messaging, type(messaging))
                 sender_id = messaging['sender']['id']
                 recipient_id = messaging['recipient']['id']
                 time = messaging['timestamp']
@@ -65,7 +64,7 @@ def run(request):
                     continue
 
                 msg = {
-                    'mtype': 'text',
+                    'mtype': 'message',
                     'text': text,
                     'author': f'FB_{sender_id}',
                     'author_name': f'FB_{sender_id}',

@@ -130,7 +130,7 @@ def remove_channel(credentials: VkCredentials):
         for el in result['items']:
             if el['title'] == SERVER_TITLE:
                 server_ids.append(el['id'])
-        if server_id == []:
+        if server_ids == []:
             cnt -= 1
             time.sleep(VK_RQ_DELAY)
             continue
