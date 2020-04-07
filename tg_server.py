@@ -118,7 +118,11 @@ class TgListener:
 
     def full_init(self):
         # reserve this channel for us
-        processer.check_if_alive_and_update(self.channel['_id'], self)
+        result = processer.check_if_alive_and_update(self.channel['_id'], self)
+        if not result:
+            processer.remove_channel(self.channel['_id'])
+            return
+
         INIT_SESSION = False
         if self.credentials.get('db', None) is None:
             INIT_SESSION = True
@@ -126,7 +130,7 @@ class TgListener:
             test_mode = False
             if self.credentials['link'] == 'http://localhost:2000/_tg_get_code/2':
                 test_mode = True
-            print(f"Test mode: {test_mode}")
+            logging.debug(f"Test mode: {test_mode}")
             app = pyrogram.Client(TITLE, api_id=API_ID,
                                           api_hash=API_HASH,
                                           phone_number=self.credentials['phone'],
@@ -137,7 +141,6 @@ class TgListener:
             app.start()
 
             app.stop()
-            print(os.listdir(self.fdir))
             logging.info('updating db state in mongo')
             content = get_b64_file(f'{self.fdir}/{SESSION_FILE_NAME}')
             channels.update_one({'_id': self.channel['_id']},
@@ -149,7 +152,7 @@ class TgListener:
                                     api_id=API_ID,
                                     api_hash=API_HASH,)
         app.add_handler(pyrogram.MessageHandler(self.handle_message))
-        print('INIT done')
+        logging.debug('INIT done')
         self.app = app
         threading.Thread(target=self.app.run).start()
         threading.Thread(target=self.watcher).start()
@@ -214,7 +217,9 @@ class TgListener:
         if getattr(update, 'reply_to_message', None) is not None:
             reply_to = None
             original_id = str(update.reply_to_message.message_id)
-            res = messages.find_one({'channel': CHANNEL, 'thread_id': str(chat_id),
+            res = messages.find_one({'channel': CHANNEL,
+                                    'channel_id': self.channel['_id'],
+                                    'thread_id': str(chat_id),
                                     'original_ids': original_id})
             if res is not None:
                 reply_to = str(res['_id'])
@@ -242,7 +247,9 @@ class TgListener:
 
             if getattr(update, 'forward_from_message_id', None) is not None:
                 original_id = update.forward_from_message_id
-                res = messages.find_one({'channel': CHANNEL, 'thread_id': str(chat_id), \
+                res = messages.find_one({'channel': CHANNEL,
+                                        'channel_id': self.channel['_id'],
+                                        'thread_id': str(chat_id),
                                         'original_ids': original_id})
                 if res is not None:
                     forwarded['original_ids'] = [str(res['_id'])]
@@ -254,9 +261,11 @@ class TgListener:
         message['original_ids'] = [str(update.message_id)]
 
         if getattr(update, 'edit_date', None) is not None:
-            "mversion, unedited, mtype"
-            query = {'channel': CHANNEL, 'thread_id': str(chat_id), \
-                    'original_ids': str(update.message_id), 'mtype': 'message'}
+            query = {'channel': CHANNEL,
+                    'channel_id': self.channel['_id'],
+                    'thread_id': str(chat_id),
+                    'original_ids': str(update.message_id),
+                    'mtype': 'message'}
             original = messages.find_one(query)
             if original is None:
                 logging.warning(f'Unedited message for {update.message_id} in {str(chat_id)} not found')

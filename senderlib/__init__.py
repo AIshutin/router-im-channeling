@@ -45,6 +45,6 @@ def remove_channel(channel, credentials):
 class Credentials(BaseModel):
     channel_type: Channels
     webhook_token: str
-    timestamp: str
+    timestamp: Optional[str] = None
     credentials: Union[fbcredentials, vkcredentials, tg_botcredentials, \
                         emailcredentials, tgcredentials]

@@ -18,7 +18,6 @@ def run(request):
     if result is None:
         return 'Bad token'
     channel_id = result['_id']
-    print(req)
     if 'message' or 'edited_message' in req:
         message = req.get('message', req.get('edited_message'))
         EDITED = 'edited_message' in req
@@ -120,37 +119,3 @@ def run(request):
 
         add_new_message(msg)
     return 'Ok'
-
-request_json_example = {'update_id': 116115482,
-                        'message': {
-                            'message_id': 335,
-                            'from': {
-                                'id': 438162308,
-                                'is_bot': False,
-                                'first_name': 'Andrew',
-                                'last_name': 'Ishutin',
-                                'username': 'aishutin',
-                                'language_code': 'en'
-                                },
-                            'chat': {
-                                'id': 438162308,
-                                'first_name': 'Andrew',
-                                'last_name': 'Ishutin',
-                                'username': 'aishutin',
-                                'type': 'private'
-                                },
-                            'date': 1583417418,
-                            'photo': [
-                                {'file_id': 'AgACAgIAAxkBAAIBT15hCExgYu0Voc8I5C9xuqcrA7KGAAL6rTEbt2IIS45qW3TsdO97zx3BDgAEAQADAgADbQADUp4DAAEYBA', 'file_unique_id': 'AQADzx3BDgAEUp4DAAE', 'file_size': 19245, 'width': 320, 'height': 169}, {'file_id': 'AgACAgIAAxkBAAIBT15hCExgYu0Voc8I5C9xuqcrA7KGAAL6rTEbt2IIS45qW3TsdO97zx3BDgAEAQADAgADeAADU54DAAEYBA',
-                                 'file_unique_id': 'AQADzx3BDgAEU54DAAE',
-                                 'file_size': 60995,
-                                 'width': 800,
-                                 'height': 422},
-                                {'file_id': 'AgACAgIAAxkBAAIBT15hCExgYu0Voc8I5C9xuqcrA7KGAAL6rTEbt2IIS45qW3TsdO97zx3BDgAEAQADAgADeQADUJ4DAAEYBA',
-                                 'file_unique_id': 'AQADzx3BDgAEUJ4DAAE',
-                                 'file_size': 67460,
-                                 'width': 892,
-                                 'height': 471}
-                                 ]
-                            }
-                        }

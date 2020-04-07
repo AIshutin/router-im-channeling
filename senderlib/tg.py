@@ -1,4 +1,3 @@
-from .python_telegram.client import Telegram
 from typing import Optional
 from .common import Message, Channels, ChannelCredentials, gen_random_string, \
                     BASE_URL, SECRET_INTERNAL_KEY, MessageType, get_mime_type, \
@@ -16,10 +15,6 @@ import shutil
 import time
 
 CHANNEL = 'tg'
-API_ID = os.getenv('API_ID', "1087174")
-API_HASH = os.getenv('API_HASH', "3370ae6b2b06dad548626a0fdafc14dc")
-logging.info(f'{API_ID} used as API_ID for Telegram')
-logging.info(f'{API_HASH} used as API_HASH for Telegram')
 
 class TgCredentials(pydantic.BaseModel):
     phone: str
