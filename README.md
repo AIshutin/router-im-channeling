@@ -36,3 +36,4 @@ It's not recommended way.
 ## Notes
 Enable IMAP and POP3 for email account.
 On Facebook, the response to user must be sent in 24h window. Otherwise, it will not be sent.
+You must increase timeout for email and tg channels upsertion.
