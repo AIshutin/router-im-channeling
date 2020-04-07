@@ -10,7 +10,11 @@ import time
 logging.basicConfig(level=logging.DEBUG)
 
 MONGO_PASSWORD = '8jxIlp0znlJm8qhL'
-MONGO_LINK = f'mongodb+srv://cerebra-autofaq:{MONGO_PASSWORD}@testing-pjmjc.gcp.mongodb.net/test?retryWrites=true&w=majority'
+MONGO_LINK = os.getenv('MONGO_LINK', f'mongodb+srv://cerebra-autofaq:'
+                                     f'{MONGO_PASSWORD}@testing-pjmjc.'
+                                     'gcp.mongodb.net/test?retryWrites'
+                                     '=true&w=majority')
+logging.info(f'{MONGO_LINK} used as MONGO_LINK')
 myclient = pymongo.MongoClient(MONGO_LINK)
 channels = myclient['SERVICE']['channels']
 messages = myclient['SERVICE']['messages']

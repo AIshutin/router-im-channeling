@@ -19,13 +19,12 @@ class CredentialsNotFound(Exception):
     def __str__(self):
         return f"{self.name} credentials not found"
 
-MONGO_PASSWORD = os.getenv('MONGO_PASSWORD', '8jxIlp0znlJm8qhL')
+MONGO_PASSWORD = '8jxIlp0znlJm8qhL'
 MONGO_LINK = os.getenv('MONGO_LINK', f'mongodb+srv://cerebra-autofaq:'
                                      f'{MONGO_PASSWORD}@testing-pjmjc.'
                                      'gcp.mongodb.net/test?retryWrites'
                                      '=true&w=majority')
 logging.info(f'{MONGO_LINK} used as MONGO_LINK')
-logging.info(f'{MONGO_PASSWORD} used as MONGO_PASSWORD')
 
 myclient = pymongo.MongoClient(MONGO_LINK)
 channels = myclient['SERVICE']['channels']
@@ -58,7 +57,6 @@ def upsert_channel_long_action(channel: Channels, credentials, delay=100):
     for key in list(search_dict.keys()):
         search_dict[f'credentials.{key}'] = search_dict.pop(key)
     search_dict['channel_type'] = channel
-    print(search_dict)
     res = channels.find_one(search_dict)
     if res is not None:
         return {'channel_id': str(res['_id'])}
